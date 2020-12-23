@@ -1,9 +1,30 @@
 package com.ar.jetpackarchitecture.ui.auth
 
+import android.os.Bundle
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.ar.jetpackarchitecture.R
 
 
-class ForgotPasswordFragment : Fragment(R.layout.fragment_forgot_password){
+class ForgotPasswordFragment : BaseAuthFragment(){
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        return inflater.inflate(R.layout.fragment_forgot_password, container, false)
+    }
+
+    // they take the onSuper from BaseAuthFragment because of the inheritance
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        // inherits from the BaseAuthFragment therefore has access to TAG and ViewModel
+        Log.d(TAG, "ForgotPassword: ${viewModel.hashCode()}: ")
+    }
 
 }
