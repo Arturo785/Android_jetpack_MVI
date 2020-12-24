@@ -6,7 +6,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Observer
 import com.ar.jetpackarchitecture.R
+import com.ar.jetpackarchitecture.util.ApiEmptyResponse
+import com.ar.jetpackarchitecture.util.ApiErrorResponse
+import com.ar.jetpackarchitecture.util.ApiSuccessResponse
 
 
 class LoginFragment : BaseAuthFragment(){
@@ -25,6 +29,23 @@ class LoginFragment : BaseAuthFragment(){
 
         // inherits from the BaseAuthFragment therefore has access to TAG and ViewModel
         Log.d(TAG, "LoginFragment: ${viewModel.hashCode()}: ")
+
+        viewModel.testLoginRequest("joarceus@hotmail.com", "pitonpastel").observe(
+            viewLifecycleOwner,
+            Observer { response ->
+                when (response) {
+                    is ApiSuccessResponse -> {
+                        Log.d(TAG, "Success: ${response.body} ")
+                    }
+                    is ApiErrorResponse -> {
+                        Log.d(TAG, "Error: ${response.errorMessage} ")
+                    }
+                    is ApiEmptyResponse -> {
+                        Log.d(TAG, "EMPTY:")
+                    }
+                }
+            }
+        )
     }
 
 }

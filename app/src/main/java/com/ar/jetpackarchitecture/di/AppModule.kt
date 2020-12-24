@@ -7,15 +7,38 @@ import com.ar.jetpackarchitecture.persistence.AccountPropertiesDAO
 import com.ar.jetpackarchitecture.persistence.AppDatabase
 import com.ar.jetpackarchitecture.persistence.AppDatabase.Companion.DATABASE_NAME
 import com.ar.jetpackarchitecture.persistence.AuthTokenDAO
+import com.ar.jetpackarchitecture.util.Constants
+import com.ar.jetpackarchitecture.util.LiveDataCallAdapterFactory
 import com.bumptech.glide.Glide
 import com.bumptech.glide.RequestManager
 import com.bumptech.glide.request.RequestOptions
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import dagger.Module
 import dagger.Provides
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Singleton
 
 @Module
 class AppModule{
+
+    @Singleton
+    @Provides
+    fun providesGsonBuilder(): Gson {
+        return GsonBuilder().excludeFieldsWithoutExposeAnnotation().create()
+    }
+
+
+    @Singleton
+    @Provides
+    fun providesRetrofitBuilder(gson : Gson): Retrofit.Builder {
+        return Retrofit.Builder()
+            .baseUrl(Constants.BASE_URL)
+            .addCallAdapterFactory(LiveDataCallAdapterFactory())
+            .addConverterFactory(GsonConverterFactory.create(gson))
+
+    }
 
     @Singleton
     @Provides
