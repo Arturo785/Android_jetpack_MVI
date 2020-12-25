@@ -8,9 +8,8 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import com.ar.jetpackarchitecture.R
-import com.ar.jetpackarchitecture.util.ApiEmptyResponse
-import com.ar.jetpackarchitecture.util.ApiErrorResponse
-import com.ar.jetpackarchitecture.util.ApiSuccessResponse
+import com.ar.jetpackarchitecture.ui.auth.state.LoginFields
+import kotlinx.android.synthetic.main.fragment_login.*
 
 
 class LoginFragment : BaseAuthFragment(){
@@ -30,21 +29,27 @@ class LoginFragment : BaseAuthFragment(){
         // inherits from the BaseAuthFragment therefore has access to TAG and ViewModel
         Log.d(TAG, "LoginFragment: ${viewModel.hashCode()}: ")
 
-        viewModel.testLoginRequest("joarceus@hotmail.com", "pitonpastel").observe(
-            viewLifecycleOwner,
-            Observer { response ->
-                when (response) {
-                    is ApiSuccessResponse -> {
-                        Log.d(TAG, "Success: ${response.body} ")
-                    }
-                    is ApiErrorResponse -> {
-                        Log.d(TAG, "Error: ${response.errorMessage} ")
-                    }
-                    is ApiEmptyResponse -> {
-                        Log.d(TAG, "EMPTY:")
-                    }
-                }
+        subscribeObservers()
+    }
+
+    fun subscribeObservers(){
+        viewModel.viewState.observe(viewLifecycleOwner, Observer {
+            // to when they are saved data from the viewModel to set it to the inputs
+            it.loginFields?.let { loginFields ->
+                loginFields.login_email?.let { input_email.setText(it) }
+                loginFields.login_password?.let { input_password.setText(it) }
             }
+        })
+    }
+
+    // saves the data on the liveDataObject when we leave the fragment
+    override fun onDestroyView() {
+        super.onDestroyView()
+        viewModel.setLoginFields(
+            LoginFields(
+                input_email.text.toString(),
+                input_password.text.toString()
+            )
         )
     }
 
