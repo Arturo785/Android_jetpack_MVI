@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import com.ar.jetpackarchitecture.R
+import com.ar.jetpackarchitecture.models.AuthToken
 import com.ar.jetpackarchitecture.ui.auth.state.LoginFields
 import kotlinx.android.synthetic.main.fragment_login.*
 
@@ -28,6 +29,13 @@ class LoginFragment : BaseAuthFragment(){
 
         // inherits from the BaseAuthFragment therefore has access to TAG and ViewModel
         Log.d(TAG, "LoginFragment: ${viewModel.hashCode()}: ")
+
+        //Just for test
+        login_button.setOnClickListener{
+            viewModel.setTokenFields(
+                AuthToken(1,"aasdsfffsfsf")
+            )
+        }
 
         subscribeObservers()
     }
