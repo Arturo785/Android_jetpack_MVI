@@ -6,6 +6,7 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.ar.jetpackarchitecture.R
 import com.ar.jetpackarchitecture.ui.BaseActivity
+import com.ar.jetpackarchitecture.ui.ResponseType
 import com.ar.jetpackarchitecture.ui.main.MainActivity
 import com.ar.jetpackarchitecture.viewmodels.ViewModelProviderFactory
 import kotlinx.android.synthetic.main.fragment_login.*
@@ -27,6 +28,41 @@ class AuthActivity : BaseActivity() {
     }
 
     private fun subscribeObservers(){
+
+        viewModel.dataState.observe(this, Observer {dataState ->
+            // a chain of verification
+            dataState.data?.let { data ->
+                data.data?.let {event ->
+                    event.getContentIfNotHandled()?.let {
+                        it.authToken?.let {
+                            // if token exists
+                            viewModel.setTokenFields(it)
+                        }
+                    }
+                }
+
+                data.response?.let { event ->
+                    event.getContentIfNotHandled()?.let {
+                        when(it.responseType){
+
+                            is ResponseType.Dialog -> {
+
+                            }
+
+                            is ResponseType.Toast ->{
+
+                            }
+
+                            is ResponseType.None -> {
+
+                            }
+                        }
+                    }
+                }
+
+            }
+
+        })
 
         viewModel.viewState.observe(this, Observer {
             it.authToken?.let {

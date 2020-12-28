@@ -17,14 +17,9 @@ class MainActivity : BaseActivity(){
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        //just for testing
-        tool_bar.setOnClickListener {
-            sessionManager.logout()
-        }
-
         subscribeObservers()
     }
-    
+
 
     private fun subscribeObservers(){
         // gets it from the inheritance
