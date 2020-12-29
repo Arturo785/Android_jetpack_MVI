@@ -14,6 +14,7 @@ import com.ar.jetpackarchitecture.ui.auth.state.LoginFields
 import com.ar.jetpackarchitecture.ui.auth.state.RegistrationFields
 import com.ar.jetpackarchitecture.util.AbsentLiveData
 import com.ar.jetpackarchitecture.util.GenericApiResponse
+import kotlinx.coroutines.InternalCoroutinesApi
 import javax.inject.Inject
 
 class AuthViewModel @Inject constructor(
@@ -87,6 +88,16 @@ class AuthViewModel @Inject constructor(
 
     override fun initNewViewState(): AuthViewState {
         return AuthViewState()
+    }
+
+    fun cancelActiveJobs(){
+        authRepository.cancelActiveJobs()
+    }
+
+    // when the viewModel gets cleared
+    override fun onCleared() {
+        super.onCleared()
+        cancelActiveJobs()
     }
 
 }

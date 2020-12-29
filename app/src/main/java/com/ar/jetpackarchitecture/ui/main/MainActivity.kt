@@ -3,13 +3,14 @@ package com.ar.jetpackarchitecture.ui.main
 import android.content.Intent
 import android.os.Bundle
 import android.os.PersistableBundle
+import android.view.View
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.ar.jetpackarchitecture.R
 import com.ar.jetpackarchitecture.ui.BaseActivity
 import com.ar.jetpackarchitecture.ui.auth.AuthActivity
-import com.ar.jetpackarchitecture.ui.auth.AuthViewModel
 import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.android.synthetic.main.activity_main.progress_bar
 
 class MainActivity : BaseActivity(){
 
@@ -36,6 +37,15 @@ class MainActivity : BaseActivity(){
         val intent = Intent(this, AuthActivity::class.java)
         startActivity(intent)
         finish() // closes the activity
+    }
+
+    override fun displayProgressBar(boolean: Boolean) {
+        if(boolean){
+            progress_bar.visibility = View.VISIBLE
+        }
+        else{
+            progress_bar.visibility = View.INVISIBLE
+        }
     }
 
 }
