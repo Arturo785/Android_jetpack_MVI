@@ -17,7 +17,8 @@ import kotlinx.coroutines.Dispatchers.Main
 
 
 abstract class NetworkBoundResource<ResponseObject, ViewStateType> (
-    isNetworkAvailable : Boolean
+    isNetworkAvailable : Boolean,
+    isNetworkRequest : Boolean,
 )
 
 {
@@ -31,36 +32,49 @@ abstract class NetworkBoundResource<ResponseObject, ViewStateType> (
         setJob(initNewJob())
         setValue(DataState.loading(isLoading = true, cachedData = null))
 
-        if(isNetworkAvailable){
-            // both coroutines have their own cycle
-            coroutineScope.launch {
+        if(isNetworkRequest){
 
-                withContext(Main){
+            if(isNetworkAvailable){
+                // both coroutines have their own cycle
+                coroutineScope.launch {
 
-                    val apiResponse = createCall()
-                    result.addSource(apiResponse){response ->
-                        result.removeSource(apiResponse) // no need to have it we just process the data
+                    withContext(Main){
 
-                        coroutineScope.launch {
-                            handleNetworkCall(response)
+                        val apiResponse = createCall()
+                        result.addSource(apiResponse){response ->
+                            result.removeSource(apiResponse) // no need to have it we just process the data
+
+                            coroutineScope.launch {
+                                handleNetworkCall(response)
+                            }
+
                         }
+                    }
+                }
 
+                GlobalScope.launch(IO) {
+                    // if this gets done means that the job has taken too long and should be cancelled
+                    delay(Constants.NETWORK_TIMEOUT)
+                    if(!job.isCompleted){
+                        Log.d(TAG, "Job timeout...: ")
+                        job.cancel(CancellationException(UNABLE_TO_RESOLVE_HOST))
                     }
                 }
             }
 
-            GlobalScope.launch(IO) {
-                // if this gets done means that the job has taken too long and should be cancelled
-                delay(Constants.NETWORK_TIMEOUT)
-                if(!job.isCompleted){
-                    Log.d(TAG, "Job timeout...: ")
-                    job.cancel(CancellationException(UNABLE_TO_RESOLVE_HOST))
-                }
+            else{
+                onErrorReturn(UNABLE_TODO_OPERATION_WO_INTERNET, shouldUseDialog = true, shouldUseToast = false)
             }
         }
+
+        // when no internet is needed
         else{
-             onErrorReturn(UNABLE_TODO_OPERATION_WO_INTERNET, shouldUseDialog = true, shouldUseToast = false)
+            coroutineScope.launch {
+                // view data from cache and return
+                createCacheRequestAndReturn()
+            }
         }
+
     }
 
     private suspend fun handleNetworkCall(response: GenericApiResponse<ResponseObject>?) {
@@ -162,6 +176,8 @@ abstract class NetworkBoundResource<ResponseObject, ViewStateType> (
     abstract fun createCall() : LiveData<GenericApiResponse<ResponseObject>>
 
     abstract fun setJob(job: Job)
+
+    abstract suspend fun createCacheRequestAndReturn()
 
 
 

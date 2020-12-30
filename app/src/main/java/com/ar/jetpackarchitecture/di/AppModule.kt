@@ -1,6 +1,8 @@
 package com.ar.jetpackarchitecture.di
 
 import android.app.Application
+import android.content.Context
+import android.content.SharedPreferences
 import androidx.room.Room
 import com.ar.jetpackarchitecture.R
 import com.ar.jetpackarchitecture.persistence.AccountPropertiesDAO
@@ -9,6 +11,7 @@ import com.ar.jetpackarchitecture.persistence.AppDatabase.Companion.DATABASE_NAM
 import com.ar.jetpackarchitecture.persistence.AuthTokenDAO
 import com.ar.jetpackarchitecture.util.Constants
 import com.ar.jetpackarchitecture.util.LiveDataCallAdapterFactory
+import com.ar.jetpackarchitecture.util.PreferenceKeys
 import com.bumptech.glide.Glide
 import com.bumptech.glide.RequestManager
 import com.bumptech.glide.request.RequestOptions
@@ -74,6 +77,18 @@ class AppModule{
     fun provideGlideInstance(application: Application, requestOptions: RequestOptions): RequestManager {
         return Glide.with(application)
             .setDefaultRequestOptions(requestOptions)
+    }
+
+    @Singleton
+    @Provides
+    fun provideSharedPreferences(application: Application) : SharedPreferences{
+        return application.getSharedPreferences(PreferenceKeys.APP_PREFERENCES, Context.MODE_PRIVATE)
+    }
+
+    @Singleton
+    @Provides
+    fun provideSharedPreferencesEditor(sharedPreferences: SharedPreferences) : SharedPreferences.Editor{
+        return sharedPreferences.edit()
     }
 
 }

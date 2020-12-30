@@ -1,11 +1,13 @@
 package com.ar.jetpackarchitecture.repository.auth
 
+import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.switchMap
 import com.ar.jetpackarchitecture.api.auth.OpenAPIAuthService
 import com.ar.jetpackarchitecture.api.auth.network_responses.LoginResponse
 import com.ar.jetpackarchitecture.api.auth.network_responses.RegistrationResponse
+import com.ar.jetpackarchitecture.models.AccountProperties
 import com.ar.jetpackarchitecture.models.AuthToken
 import com.ar.jetpackarchitecture.persistence.AccountPropertiesDAO
 import com.ar.jetpackarchitecture.persistence.AuthTokenDAO
@@ -27,7 +29,9 @@ class AuthRepository @Inject constructor(
     val authTokenDAO: AuthTokenDAO,
     val accountPropertiesDAO: AccountPropertiesDAO,
     val openAPIAuthService: OpenAPIAuthService,
-    val sessionManager: SessionManager
+    val sessionManager: SessionManager,
+    val sharedPreferences: SharedPreferences,
+    val sharedPreferencesEditor: SharedPreferences.Editor
 )
 {
     var TAG = "AuthRepository"
@@ -44,12 +48,45 @@ class AuthRepository @Inject constructor(
         }
 
         return object : NetworkBoundResource<LoginResponse, AuthViewState>(
-            sessionManager.isConnectedToInternet()
+            sessionManager.isConnectedToInternet(),
+            true
         ){
+            // not used in here
+            override suspend fun createCacheRequestAndReturn() {
+
+            }
+
             override suspend fun handleAPISuccessResponse(response: ApiSuccessResponse<LoginResponse>) {
                 if(response.body.response == GENERIC_AUTH_ERROR){
                     return onErrorReturn(response.body.errorMessage, true, false)
                 }
+
+                // insert if does not exists because of foreign key relationship
+                accountPropertiesDAO.insertOrIgnore(
+                    AccountProperties(
+                        response.body.pk,
+                        response.body.email,
+                        "" // does not matter
+                    )
+                )
+
+                // will return -1 if failure
+                val result = authTokenDAO.insert(
+                    AuthToken(
+                        response.body.pk,
+                        response.body.token
+                    )
+                )
+
+                if(result < 0){
+                    return onCompleteJob(
+                        DataState.error(
+                            Response(ERROR_SAVE_AUTH_TOKEN, ResponseType.Dialog)
+                        )
+                    )
+                }
+
+                saveAuthenticatedUserToPrefs(email)
 
                 onCompleteJob(
                     DataState.data(
@@ -204,12 +241,46 @@ class AuthRepository @Inject constructor(
         }
 
         return object : NetworkBoundResource<RegistrationResponse, AuthViewState>(
-            sessionManager.isConnectedToInternet()
+            sessionManager.isConnectedToInternet(),
+            true
         ){
+
+            // not used in here
+            override suspend fun createCacheRequestAndReturn() {
+
+            }
+
             override suspend fun handleAPISuccessResponse(response: ApiSuccessResponse<RegistrationResponse>) {
                 if(response.body.response == GENERIC_AUTH_ERROR){
                     return onErrorReturn(response.body.errorMessage, true, false)
                 }
+
+                // insert if does not exists because of foreign key relationship
+                accountPropertiesDAO.insertOrIgnore(
+                    AccountProperties(
+                        response.body.pk,
+                        response.body.email,
+                        "" // does not matter
+                    )
+                )
+
+                // will return -1 if failure
+                val result = authTokenDAO.insert(
+                    AuthToken(
+                        response.body.pk,
+                        response.body.token
+                    )
+                )
+
+                if(result < 0){
+                    return onCompleteJob(
+                        DataState.error(
+                            Response(ERROR_SAVE_AUTH_TOKEN, ResponseType.Dialog)
+                        )
+                    )
+                }
+
+                saveAuthenticatedUserToPrefs(email)
 
                 onCompleteJob(
                     DataState.data(
@@ -230,6 +301,92 @@ class AuthRepository @Inject constructor(
             }
 
         }.asLiveData()
+    }
+
+    private fun saveAuthenticatedUserToPrefs(email: String) {
+        sharedPreferencesEditor.putString(PreferenceKeys.PREVIOUS_AUTH_USER, email)
+        sharedPreferencesEditor.apply()
+    }
+
+
+     fun checkPreviousAuthUser() : LiveData<DataState<AuthViewState>>{
+        val previousAuthUserEmail : String? =
+            sharedPreferences.getString(PreferenceKeys.PREVIOUS_AUTH_USER, null)
+
+        if(previousAuthUserEmail.isNullOrBlank()){
+            Log.d(TAG, "checkPreviousAuthUser: No Prev user Auth")
+            return returnNoTokenFound()
+        }
+
+        return object : NetworkBoundResource<Void, AuthViewState>(
+            sessionManager.isConnectedToInternet(),
+            false
+        ){
+            // not used in this case
+            override suspend fun handleAPISuccessResponse(response: ApiSuccessResponse<Void>) {
+
+            }
+
+            // not used in this case
+            override fun createCall(): LiveData<GenericApiResponse<Void>> {
+                return AbsentLiveData.create()
+            }
+
+            override fun setJob(job: Job) {
+                repositoryJob?.cancel()
+                repositoryJob = job
+            }
+
+            override suspend fun createCacheRequestAndReturn() {
+                accountPropertiesDAO.searchByEmail(previousAuthUserEmail).let { accountProperties ->
+                    Log.d(TAG, "createCacheRequestAndReturn: Search for token ${accountProperties}")
+
+                    accountProperties?.let {
+                        if(accountProperties.pk > -1){
+                            authTokenDAO.searchByPk(accountProperties.pk).let { authToken ->
+                                if(authToken != null){
+                                    onCompleteJob(
+                                        DataState.data(
+                                            data = AuthViewState(
+                                                authToken = authToken
+                                            )
+                                        )
+                                    )
+                                    return
+                                }
+                            }
+                        }
+                    }
+
+                    // if account properties are null or something goes wrong
+                    Log.d(TAG, "createCacheRequestAndReturn: AuthToken not found")
+                    onCompleteJob(
+                        DataState.data(
+                            response = Response(
+                                SuccessHandling.RESPONSE_CHECK_PREVIOUS_AUTH_USER_DONE,
+                                ResponseType.None
+                            )
+                        )
+                    )
+
+                }
+            }
+
+        }.asLiveData()
+
+    }
+
+    private fun returnNoTokenFound(): LiveData<DataState<AuthViewState>> {
+        return object : LiveData<DataState<AuthViewState>>(){
+
+            override fun onActive() {
+                super.onActive()
+                value = DataState.data(
+                    data = null,
+                    response = Response(SuccessHandling.RESPONSE_CHECK_PREVIOUS_AUTH_USER_DONE, ResponseType.None)
+                )
+            }
+        }
     }
 
 }

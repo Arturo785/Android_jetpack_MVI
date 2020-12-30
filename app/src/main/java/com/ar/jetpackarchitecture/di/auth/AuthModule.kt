@@ -1,5 +1,6 @@
 package com.ar.jetpackarchitecture.di.auth
 
+import android.content.SharedPreferences
 import com.ar.jetpackarchitecture.api.auth.OpenAPIAuthService
 import com.ar.jetpackarchitecture.persistence.AccountPropertiesDAO
 import com.ar.jetpackarchitecture.persistence.AuthTokenDAO
@@ -27,13 +28,17 @@ class AuthModule{
         sessionManager: SessionManager,
         authTokenDao: AuthTokenDAO,
         accountPropertiesDao: AccountPropertiesDAO,
-        openApiAuthService: OpenAPIAuthService
+        openApiAuthService: OpenAPIAuthService,
+        sharedPreferences: SharedPreferences,
+        sharedPreferencesEditor: SharedPreferences.Editor
     ): AuthRepository {
         return AuthRepository(
             authTokenDao,
             accountPropertiesDao,
             openApiAuthService,
-            sessionManager
+            sessionManager,
+            sharedPreferences,
+            sharedPreferencesEditor
         )
     }
 
