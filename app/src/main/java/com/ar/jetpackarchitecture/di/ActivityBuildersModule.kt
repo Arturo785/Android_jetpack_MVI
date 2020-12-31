@@ -21,7 +21,7 @@ abstract class ActivityBuildersModule {
         modules = [AuthModule::class, AuthFragmentBuildersModule::class, AuthViewModelModule::class]
     )
     abstract fun contributeAuthActivity(): AuthActivity
-    
+
     @MainScope
     @ContributesAndroidInjector(
         modules = [MainModule::class, MainFragmentBuildersModule::class, MainViewModelModule::class]
