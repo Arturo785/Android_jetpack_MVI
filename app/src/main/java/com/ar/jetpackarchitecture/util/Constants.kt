@@ -10,5 +10,6 @@ class Constants {
         const val CACHE_TIMEOUT = 2000L
         const val TESTING_NETWORK_DELAY = 0L // fake network delay for testing
         const val TESTING_CACHE_DELAY = 0L // fake cache delay for testing
+        const val PASSWORD_RESET_URL: String = "https://open-api.xyz/password_reset/"
     }
 }
