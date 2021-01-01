@@ -18,6 +18,7 @@ import com.ar.jetpackarchitecture.ui.main.blog.UpdateBlogFragment
 import com.ar.jetpackarchitecture.ui.main.blog.ViewBlogFragment
 import com.ar.jetpackarchitecture.util.BottomNavController
 import com.ar.jetpackarchitecture.util.setUpNavigation
+import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.android.synthetic.main.activity_main.*
 
@@ -103,7 +104,7 @@ class MainActivity : BaseActivity(),
     }
 
     override fun onGraphChange() {
-        
+        expandAppBar() // because of a bug that hides the appBar
     }
 
     // to manage tap on the bottomNav when in the same host but not homeFragment
@@ -141,6 +142,10 @@ class MainActivity : BaseActivity(),
 
     private fun setupActionBar(){
         setSupportActionBar(tool_bar)
+    }
+
+    override fun expandAppBar() {
+        findViewById<AppBarLayout>(R.id.app_bar).setExpanded(true)
     }
 
 }

@@ -13,6 +13,7 @@ import com.ar.jetpackarchitecture.ui.BaseActivity
 import com.ar.jetpackarchitecture.ui.auth.state.AuthStateEvent
 import com.ar.jetpackarchitecture.ui.main.MainActivity
 import com.ar.jetpackarchitecture.viewmodels.ViewModelProviderFactory
+import com.google.android.material.appbar.AppBarLayout
 import kotlinx.android.synthetic.main.activity_auth.*
 import javax.inject.Inject
 
@@ -96,5 +97,9 @@ class AuthActivity : BaseActivity(), NavController.OnDestinationChangedListener 
         else{
             progress_bar.visibility = View.INVISIBLE
         }
+    }
+
+    override fun expandAppBar() {
+        // ignore
     }
 }
