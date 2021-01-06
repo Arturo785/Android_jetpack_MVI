@@ -16,9 +16,11 @@ import kotlinx.coroutines.Dispatchers.Main
 // this class is made to handle every db,cache,network resource the app makes
 
 
-abstract class NetworkBoundResource<ResponseObject, ViewStateType> (
+abstract class NetworkBoundResource<ResponseObject, CacheObject, ViewStateType> (
     isNetworkAvailable : Boolean,
     isNetworkRequest : Boolean,
+    shouldLoadFromCache : Boolean,
+    shouldCancelIfNotInternet : Boolean
 )
 
 {
@@ -32,49 +34,72 @@ abstract class NetworkBoundResource<ResponseObject, ViewStateType> (
         setJob(initNewJob())
         setValue(DataState.loading(isLoading = true, cachedData = null))
 
+        if(shouldLoadFromCache){
+            val dbSource = loadFromCache()
+
+            result.addSource(dbSource){
+                result.removeSource(dbSource) // no need to have it we just process the data
+                setValue(DataState.loading(true,cachedData = it))
+            }
+        }
+
         if(isNetworkRequest){
 
             if(isNetworkAvailable){
-                // both coroutines have their own cycle
-                coroutineScope.launch {
-
-                    withContext(Main){
-
-                        val apiResponse = createCall()
-                        result.addSource(apiResponse){response ->
-                            result.removeSource(apiResponse) // no need to have it we just process the data
-
-                            coroutineScope.launch {
-                                handleNetworkCall(response)
-                            }
-
-                        }
-                    }
-                }
-
-                GlobalScope.launch(IO) {
-                    // if this gets done means that the job has taken too long and should be cancelled
-                    delay(Constants.NETWORK_TIMEOUT)
-                    if(!job.isCompleted){
-                        Log.d(TAG, "Job timeout...: ")
-                        job.cancel(CancellationException(UNABLE_TO_RESOLVE_HOST))
-                    }
-                }
+                doNetworkRequest()
             }
 
             else{
-                onErrorReturn(UNABLE_TODO_OPERATION_WO_INTERNET, shouldUseDialog = true, shouldUseToast = false)
+                if(shouldCancelIfNotInternet){
+                    onErrorReturn(UNABLE_TODO_OPERATION_WO_INTERNET, shouldUseDialog = true, shouldUseToast = false)
+                }
+                else{
+                    doCacheRequest()
+                }
+
             }
         }
 
         // when no internet is needed
         else{
-            coroutineScope.launch {
-                // view data from cache and return
-                createCacheRequestAndReturn()
+            doCacheRequest()
+        }
+
+    }
+
+    private fun doCacheRequest() {
+        coroutineScope.launch {
+            // view data from cache and return
+            createCacheRequestAndReturn()
+        }
+    }
+
+    private fun doNetworkRequest(){
+        // both coroutines have their own cycle
+        coroutineScope.launch {
+
+            withContext(Main){
+
+                val apiResponse = createCall()
+                result.addSource(apiResponse){response ->
+                    result.removeSource(apiResponse) // no need to have it we just process the data
+
+                    coroutineScope.launch {
+                        handleNetworkCall(response)
+                    }
+
+                }
             }
         }
 
+        GlobalScope.launch(IO) {
+            // if this gets done means that the job has taken too long and should be cancelled
+            delay(Constants.NETWORK_TIMEOUT)
+            if(!job.isCompleted){
+                Log.d(TAG, "Job timeout...: ")
+                job.cancel(CancellationException(UNABLE_TO_RESOLVE_HOST))
+            }
+        }
     }
 
     private suspend fun handleNetworkCall(response: GenericApiResponse<ResponseObject>?) {
@@ -176,6 +201,10 @@ abstract class NetworkBoundResource<ResponseObject, ViewStateType> (
     abstract fun createCall() : LiveData<GenericApiResponse<ResponseObject>>
 
     abstract fun setJob(job: Job)
+
+    abstract fun loadFromCache() : LiveData<ViewStateType>
+
+    abstract suspend fun updateLocalDb(cachedObject : CacheObject?)
 
     abstract suspend fun createCacheRequestAndReturn()
 

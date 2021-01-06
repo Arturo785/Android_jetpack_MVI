@@ -12,10 +12,13 @@ import androidx.navigation.NavController
 import com.ar.jetpackarchitecture.R
 import com.ar.jetpackarchitecture.ui.BaseActivity
 import com.ar.jetpackarchitecture.ui.auth.AuthActivity
+import com.ar.jetpackarchitecture.ui.main.account.BaseAccountFragment
 import com.ar.jetpackarchitecture.ui.main.account.ChangePasswordFragment
 import com.ar.jetpackarchitecture.ui.main.account.UpdateAccountFragment
+import com.ar.jetpackarchitecture.ui.main.blog.BaseBlogFragment
 import com.ar.jetpackarchitecture.ui.main.blog.UpdateBlogFragment
 import com.ar.jetpackarchitecture.ui.main.blog.ViewBlogFragment
+import com.ar.jetpackarchitecture.ui.main.create_blog.BaseCreateBlogFragment
 import com.ar.jetpackarchitecture.util.BottomNavController
 import com.ar.jetpackarchitecture.util.setUpNavigation
 import com.google.android.material.appbar.AppBarLayout
@@ -105,6 +108,25 @@ class MainActivity : BaseActivity(),
 
     override fun onGraphChange() {
         expandAppBar() // because of a bug that hides the appBar
+        cancelActiveJobs()
+    }
+
+    private fun cancelActiveJobs(){
+        val fragments = bottomNavController.fragmentManager
+            .findFragmentById(bottomNavController.containerId)
+            ?.childFragmentManager
+            ?.fragments
+        if(fragments != null){
+            for(fragment in fragments){
+
+                when(fragment){
+                    is BaseAccountFragment -> fragment.cancelActiveJobs()
+                    is BaseBlogFragment -> fragment.cancelActiveJobs()
+                    is BaseCreateBlogFragment -> fragment.cancelActiveJobs()
+                }
+            }
+        }
+        displayProgressBar(false)
     }
 
     // to manage tap on the bottomNav when in the same host but not homeFragment

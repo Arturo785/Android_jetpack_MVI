@@ -11,6 +11,7 @@ import com.ar.jetpackarchitecture.models.AccountProperties
 import com.ar.jetpackarchitecture.models.AuthToken
 import com.ar.jetpackarchitecture.persistence.AccountPropertiesDAO
 import com.ar.jetpackarchitecture.persistence.AuthTokenDAO
+import com.ar.jetpackarchitecture.repository.JobManager
 import com.ar.jetpackarchitecture.repository.NetworkBoundResource
 import com.ar.jetpackarchitecture.session.SessionManager
 import com.ar.jetpackarchitecture.ui.Data
@@ -32,11 +33,10 @@ class AuthRepository @Inject constructor(
     val sessionManager: SessionManager,
     val sharedPreferences: SharedPreferences,
     val sharedPreferencesEditor: SharedPreferences.Editor
-)
+) : JobManager("AuthRepository")
 {
     var TAG = "AuthRepository"
 
-    private var repositoryJob : Job? = null
 
 
     fun attemptLogin(email: String, password: String) : LiveData<DataState<AuthViewState>>{
@@ -47,8 +47,10 @@ class AuthRepository @Inject constructor(
             return returnErrorResponse(loginFields, ResponseType.Dialog)
         }
 
-        return object : NetworkBoundResource<LoginResponse, AuthViewState>(
+        return object : NetworkBoundResource<LoginResponse, Any, AuthViewState>(
             sessionManager.isConnectedToInternet(),
+            true,
+            false,
             true
         ){
             // not used in here
@@ -102,8 +104,17 @@ class AuthRepository @Inject constructor(
             }
 
             override fun setJob(job: Job) {
-                repositoryJob?.cancel() // if previous job exists cancels it
-                repositoryJob = job
+                addJob("attemptLogin", job)
+            }
+
+            // not used in here
+            override fun loadFromCache(): LiveData<AuthViewState>{
+                return AbsentLiveData.create()
+            }
+
+            // not used in here
+            override suspend fun updateLocalDb(cachedObject: Any?) {
+
             }
 
         }.asLiveData()
@@ -121,11 +132,6 @@ class AuthRepository @Inject constructor(
                 )
             }
         }
-    }
-
-    fun cancelActiveJobs(){
-        Log.d(TAG, "cancelling all jobs: ")
-        repositoryJob?.cancel()
     }
 
 
@@ -240,8 +246,10 @@ class AuthRepository @Inject constructor(
             return returnErrorResponse(registrationFieldsErrors, ResponseType.Dialog)
         }
 
-        return object : NetworkBoundResource<RegistrationResponse, AuthViewState>(
+        return object : NetworkBoundResource<RegistrationResponse, Any, AuthViewState>(
             sessionManager.isConnectedToInternet(),
+            true,
+            false,
             true
         ){
 
@@ -296,8 +304,17 @@ class AuthRepository @Inject constructor(
             }
 
             override fun setJob(job: Job) {
-                repositoryJob?.cancel() // if previous job exists cancels it
-                repositoryJob = job
+                addJob("attemptRegistration", job)
+            }
+
+            // not used in here
+            override fun loadFromCache(): LiveData<AuthViewState>{
+                return AbsentLiveData.create()
+            }
+
+            // not used in here
+            override suspend fun updateLocalDb(cachedObject: Any?) {
+
             }
 
         }.asLiveData()
@@ -318,8 +335,10 @@ class AuthRepository @Inject constructor(
             return returnNoTokenFound()
         }
 
-        return object : NetworkBoundResource<Void, AuthViewState>(
+        return object : NetworkBoundResource<Void, Any, AuthViewState>(
             sessionManager.isConnectedToInternet(),
+            false,
+            false,
             false
         ){
             // not used in this case
@@ -333,8 +352,7 @@ class AuthRepository @Inject constructor(
             }
 
             override fun setJob(job: Job) {
-                repositoryJob?.cancel()
-                repositoryJob = job
+                addJob("checkPreviousAuthUser", job)
             }
 
             override suspend fun createCacheRequestAndReturn() {
@@ -370,6 +388,16 @@ class AuthRepository @Inject constructor(
                     )
 
                 }
+            }
+
+            // not used in here
+            override fun loadFromCache(): LiveData<AuthViewState>{
+                return AbsentLiveData.create()
+            }
+
+            // not used in here
+            override suspend fun updateLocalDb(cachedObject: Any?) {
+
             }
 
         }.asLiveData()

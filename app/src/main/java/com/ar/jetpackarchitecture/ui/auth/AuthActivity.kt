@@ -32,6 +32,11 @@ class AuthActivity : BaseActivity(), NavController.OnDestinationChangedListener 
         findNavController(R.id.auth_nav_host_fragment).addOnDestinationChangedListener(this)
 
         subscribeObservers()
+
+    }
+
+    override fun onResume() {
+        super.onResume()
         // triggers the observer in the viewModel on the handleStateEvent
         checkPreviousAuthUser()
     }
@@ -39,6 +44,7 @@ class AuthActivity : BaseActivity(), NavController.OnDestinationChangedListener 
     private fun subscribeObservers(){
 
         viewModel.dataState.observe(this, Observer {dataState ->
+            // checks any errors or messages to be shown
             onDataStateChange(dataState)
             // a chain of verification
             dataState.data?.let { data ->

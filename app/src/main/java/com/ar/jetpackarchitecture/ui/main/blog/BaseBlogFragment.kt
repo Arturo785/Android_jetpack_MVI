@@ -28,9 +28,15 @@ abstract class BaseBlogFragment : DaggerFragment(){
         }
     }
 
+    fun cancelActiveJobs(){
+        //viewModel.cancelActiveJobs()
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupActionBarWithNavController(R.id.blogFragment, activity as AppCompatActivity)
+
+        cancelActiveJobs()
     }
 
     // deletes the backArrow on the fragments inside the setOf
