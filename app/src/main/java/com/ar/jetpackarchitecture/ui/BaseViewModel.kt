@@ -27,6 +27,10 @@ abstract class BaseViewModel<StateEvent, ViewState> : ViewModel(){
             }
         }
 
+    fun setViewState(viewState: ViewState){
+        _viewState.value = viewState
+    }
+
     // our data state handles what we receive
     // because each viewModel will have it's own stateEvent and ViewState
     // this has to be custom on each viewModel that's why it is abstract

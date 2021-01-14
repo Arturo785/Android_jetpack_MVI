@@ -10,7 +10,8 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-abstract class BaseActivity : DaggerAppCompatActivity(), DataStateChangeListener{
+abstract class BaseActivity : DaggerAppCompatActivity(), DataStateChangeListener
+        , UICommunicationListener{
 
     val TAG = "BaseActivity"
 
@@ -91,6 +92,30 @@ abstract class BaseActivity : DaggerAppCompatActivity(), DataStateChangeListener
             val inputMethodManager = getSystemService(
                 Context.INPUT_METHOD_SERVICE) as InputMethodManager
             inputMethodManager.hideSoftInputFromWindow(currentFocus!!.windowToken, 0)
+        }
+    }
+
+    override fun onUIMessageReceived(uiMessage: UIMessage) {
+        when(uiMessage.uiMessageType){
+
+            UIMessageType.Toast -> {
+                displayToast(uiMessage.message)
+            }
+
+            UIMessageType.Dialog -> {
+                displayInfoDialog(uiMessage.message)
+            }
+
+            is UIMessageType.AreYouSureDialog -> {
+                areYouSureDialog(
+                    uiMessage.message,
+                    uiMessage.uiMessageType.callback
+                )
+            }
+
+            UIMessageType.None -> {
+
+            }
         }
     }
 }

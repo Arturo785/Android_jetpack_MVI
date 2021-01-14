@@ -6,9 +6,11 @@ import com.ar.jetpackarchitecture.repository.main.AccountRepository
 import com.ar.jetpackarchitecture.session.SessionManager
 import com.ar.jetpackarchitecture.ui.BaseViewModel
 import com.ar.jetpackarchitecture.ui.DataState
+import com.ar.jetpackarchitecture.ui.Loading
 import com.ar.jetpackarchitecture.ui.auth.state.AuthStateEvent
 import com.ar.jetpackarchitecture.ui.main.account.state.AccountStateEvent
 import com.ar.jetpackarchitecture.ui.main.account.state.AccountViewState
+import com.ar.jetpackarchitecture.ui.main.blog.state.BlogViewState
 import com.ar.jetpackarchitecture.util.AbsentLiveData
 import javax.inject.Inject
 
@@ -54,7 +56,12 @@ class AccountViewModel @Inject constructor(
             }
 
             is AccountStateEvent.None -> {
-                return AbsentLiveData.create()
+                return object: LiveData<DataState<AccountViewState>>(){
+                    override fun onActive() {
+                        super.onActive()
+                        value = DataState(null, Loading(false), null)
+                    }
+                }
             }
         }
     }
