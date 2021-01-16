@@ -1,16 +1,37 @@
 package com.ar.jetpackarchitecture.ui.main.blog
 
+import android.app.Activity
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
+import android.util.Log
 import android.view.*
 import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
 import com.ar.jetpackarchitecture.R
+import com.ar.jetpackarchitecture.ui.*
 import com.ar.jetpackarchitecture.ui.main.blog.state.BlogStateEvent
+import com.ar.jetpackarchitecture.ui.main.blog.viewmodel.getImageUri
+import com.ar.jetpackarchitecture.ui.main.blog.viewmodel.getUpdatedBlogUri
 import com.ar.jetpackarchitecture.ui.main.blog.viewmodel.onBlogPostUpdateSuccess
 import com.ar.jetpackarchitecture.ui.main.blog.viewmodel.setUpdatedBlogFields
+import com.ar.jetpackarchitecture.ui.main.create_blog.state.CreateBlogStateEvent
+import com.ar.jetpackarchitecture.util.Constants
+import com.ar.jetpackarchitecture.util.Constants.Companion.GALLERY_REQUEST_CODE
+import com.ar.jetpackarchitecture.util.ERROR_MUST_SELECT_IMAGE
+import com.ar.jetpackarchitecture.util.ERROR_SOMETHING_WRONG_WITH_IMAGE
+import com.theartofdev.edmodo.cropper.CropImage
+import com.theartofdev.edmodo.cropper.CropImageView
+import kotlinx.android.synthetic.main.fragment_create_blog.*
 import kotlinx.android.synthetic.main.fragment_update_blog.*
+import kotlinx.android.synthetic.main.fragment_update_blog.blog_body
+import kotlinx.android.synthetic.main.fragment_update_blog.blog_image
+import kotlinx.android.synthetic.main.fragment_update_blog.blog_title
+import okhttp3.MediaType
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import java.io.File
 
 class UpdateBlogFragment : BaseBlogFragment(){
 
@@ -25,9 +46,84 @@ class UpdateBlogFragment : BaseBlogFragment(){
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         setHasOptionsMenu(true)
         subscribeObservers()
+
+        image_container.setOnClickListener {
+            if(stateChangeListener.isStoragePermissionGranted()){
+                pickFromGallery()
+            }
+        }
+    }
+
+    private fun pickFromGallery() {
+        val intent = Intent(
+            Intent.ACTION_PICK,
+            android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        )
+        intent.type = "image/*"
+        val mimeTypes = arrayOf("image/jpeg", "image/png", "image/jpg")
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
+        intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        startActivityForResult(intent, GALLERY_REQUEST_CODE)
+    }
+
+    private fun launchImageCrop(uri: Uri){
+        context?.let{
+            CropImage.activity(uri)
+                .setGuidelines(CropImageView.Guidelines.ON)
+                .start(it, this)
+        }
+    }
+
+    private fun showImageSelectionError(){
+        stateChangeListener.onDataStateChange(
+            DataState(
+                Event(StateError(
+                    Response(
+                        "Something went wrong with the image.",
+                        ResponseType.Dialog
+                    )
+                )),
+                Loading(isLoading = false),
+                Data(Event.dataEvent(null), null)
+            )
+        )
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode == Activity.RESULT_OK) {
+            when (requestCode) {
+
+                // requests the crop intent , to see the crop activity
+                GALLERY_REQUEST_CODE -> {
+                    data?.data?.let { uri ->
+                        activity?.let{
+                            launchImageCrop(uri)
+                        }
+                    }?: showImageSelectionError()
+                }
+
+                // crop went ok
+                CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE -> {
+                    Log.d(TAG, "CROP: CROP_IMAGE_ACTIVITY_REQUEST_CODE")
+                    val result = CropImage.getActivityResult(data)
+                    val resultUri = result.uri
+                    Log.d(TAG, "CROP: CROP_IMAGE_ACTIVITY_REQUEST_CODE: uri: ${resultUri}")
+                    viewModel.setUpdatedBlogFields(
+                        title = null,
+                        body = null,
+                        uri = resultUri
+                    )
+                }
+
+                CropImage.CROP_IMAGE_ACTIVITY_RESULT_ERROR_CODE -> {
+                    Log.d(TAG, "CROP: ERROR")
+                    showImageSelectionError()
+                }
+            }
+        }
     }
 
     fun subscribeObservers(){
@@ -67,6 +163,27 @@ class UpdateBlogFragment : BaseBlogFragment(){
 
     private fun saveChanges(){
         var multipartBody: MultipartBody.Part? = null
+        viewModel.getUpdatedBlogUri()?.let{ imageUri ->
+            imageUri.path?.let{filePath ->
+                val imageFile = File(filePath)
+                Log.d(TAG, "UpdateBlogFragment, imageFile: file: ${imageFile}")
+                if(imageFile.exists()){
+                    val requestBody =
+                        RequestBody.create(
+                            MediaType.parse("image/*"),
+                            imageFile
+                        )
+                    // name = field name in serializer
+                    // filename = name of the image file
+                    // requestBody = file with file type information
+                    multipartBody = MultipartBody.Part.createFormData(
+                        "image",
+                        imageFile.name,
+                        requestBody
+                    )
+                }
+            }
+        }
         viewModel.setStateEvent(
             BlogStateEvent.UpdateBlogPostEvent(
                 blog_title.text.toString(),
@@ -92,10 +209,9 @@ class UpdateBlogFragment : BaseBlogFragment(){
     }
 
 
-    // to "save" data when rotating screen
+    // to "save" when rotate screen
     override fun onPause() {
         super.onPause()
-
         viewModel.setUpdatedBlogFields(
             uri = null,
             title = blog_title.text.toString(),

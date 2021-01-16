@@ -8,6 +8,7 @@ import com.ar.jetpackarchitecture.persistence.AuthTokenDAO
 import com.ar.jetpackarchitecture.persistence.BlogPostDAO
 import com.ar.jetpackarchitecture.repository.main.AccountRepository
 import com.ar.jetpackarchitecture.repository.main.BlogRepository
+import com.ar.jetpackarchitecture.repository.main.CreateBlogRepository
 import com.ar.jetpackarchitecture.session.SessionManager
 import dagger.Module
 import dagger.Provides
@@ -52,6 +53,20 @@ class MainModule {
         sessionManager: SessionManager
     ) : BlogRepository{
         return BlogRepository(
+            openApiMainService,
+            blogPostDAO,
+            sessionManager
+        )
+    }
+
+    @MainScope
+    @Provides
+    fun provideCreateBlogRepository(
+        openApiMainService : OpenApiMainService,
+        blogPostDAO: BlogPostDAO,
+        sessionManager: SessionManager
+    ) : CreateBlogRepository{
+        return CreateBlogRepository(
             openApiMainService,
             blogPostDAO,
             sessionManager

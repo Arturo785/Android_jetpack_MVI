@@ -113,3 +113,4 @@ fun BlogViewModel.onBlogPostUpdateSuccess(blogPost: BlogPost){
     setBlogPost(blogPost) // update ViewBlogFragment
     updateListItem(blogPost) // update BlogFragment
 }
+

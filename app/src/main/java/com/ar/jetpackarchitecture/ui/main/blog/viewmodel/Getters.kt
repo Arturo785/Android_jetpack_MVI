@@ -71,4 +71,10 @@ fun BlogViewModel.getUpdatedBlogUri(): Uri? {
     return null
 }
 
+fun BlogViewModel.getImageUri() : Uri?{
+    getCurrentViewStateOrNew().let {
+        return it.updatedBlogFields.updatedImageUri
+    }
+}
+
 
