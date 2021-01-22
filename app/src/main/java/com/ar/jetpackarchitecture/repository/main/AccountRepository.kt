@@ -5,6 +5,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.switchMap
 import com.ar.jetpackarchitecture.api.GenericResponse
 import com.ar.jetpackarchitecture.api.main.OpenApiMainService
+import com.ar.jetpackarchitecture.di.main.MainScope
 import com.ar.jetpackarchitecture.models.AccountProperties
 import com.ar.jetpackarchitecture.models.AuthToken
 import com.ar.jetpackarchitecture.persistence.AccountPropertiesDAO
@@ -23,6 +24,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+
+@MainScope
 class AccountRepository @Inject constructor(
     val openApiMainService: OpenApiMainService,
     val accountPropertiesDAO: AccountPropertiesDAO,

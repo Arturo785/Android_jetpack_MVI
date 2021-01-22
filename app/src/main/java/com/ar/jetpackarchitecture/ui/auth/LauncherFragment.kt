@@ -6,19 +6,29 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import com.ar.jetpackarchitecture.R
+import com.ar.jetpackarchitecture.di.auth.AuthScope
 import kotlinx.android.synthetic.main.fragment_launcher.*
+import javax.inject.Inject
 
 
-class LauncherFragment : BaseAuthFragment(){
+@AuthScope
+class LauncherFragment
+@Inject constructor(
+    private val viewModelFactory: ViewModelProvider.Factory
+) : Fragment(R.layout.fragment_launcher,){
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.fragment_launcher, container, false)
+    val viewModel : AuthViewModel by viewModels {
+        viewModelFactory
+    }
+
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        viewModel.cancelActiveJobs()
     }
 
     // they take the onSuper from BaseAuthFragment because of the inheritance
@@ -39,8 +49,6 @@ class LauncherFragment : BaseAuthFragment(){
 
         focusable_view.requestFocus() // reset focus
 
-        // inherits from the BaseAuthFragment therefore has access to TAG and ViewModel
-        Log.d(TAG, "LoginFragment: ${viewModel.hashCode()}: ")
     }
 
     fun navLogin(){

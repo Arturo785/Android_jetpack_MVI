@@ -7,6 +7,7 @@ import androidx.lifecycle.switchMap
 import com.ar.jetpackarchitecture.api.auth.OpenAPIAuthService
 import com.ar.jetpackarchitecture.api.auth.network_responses.LoginResponse
 import com.ar.jetpackarchitecture.api.auth.network_responses.RegistrationResponse
+import com.ar.jetpackarchitecture.di.auth.AuthScope
 import com.ar.jetpackarchitecture.models.AccountProperties
 import com.ar.jetpackarchitecture.models.AuthToken
 import com.ar.jetpackarchitecture.persistence.AccountPropertiesDAO
@@ -26,6 +27,7 @@ import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
 import javax.inject.Inject
 
+@AuthScope
 class AuthRepository @Inject constructor(
     val authTokenDAO: AuthTokenDAO,
     val accountPropertiesDAO: AccountPropertiesDAO,

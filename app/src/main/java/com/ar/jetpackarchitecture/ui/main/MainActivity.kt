@@ -2,14 +2,17 @@ package com.ar.jetpackarchitecture.ui.main
 
 import android.content.Intent
 import android.os.Bundle
-import android.os.PersistableBundle
 import android.view.MenuItem
 import android.view.View
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentFactory
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
+import com.ar.jetpackarchitecture.BaseApplication
 import com.ar.jetpackarchitecture.R
+import com.ar.jetpackarchitecture.models.AUTH_TOKEN_KEY
+import com.ar.jetpackarchitecture.models.AuthToken
 import com.ar.jetpackarchitecture.ui.BaseActivity
 import com.ar.jetpackarchitecture.ui.auth.AuthActivity
 import com.ar.jetpackarchitecture.ui.main.account.BaseAccountFragment
@@ -19,17 +22,35 @@ import com.ar.jetpackarchitecture.ui.main.blog.BaseBlogFragment
 import com.ar.jetpackarchitecture.ui.main.blog.UpdateBlogFragment
 import com.ar.jetpackarchitecture.ui.main.blog.ViewBlogFragment
 import com.ar.jetpackarchitecture.ui.main.create_blog.BaseCreateBlogFragment
+import com.ar.jetpackarchitecture.util.BOTTOM_NAV_BACKSTACK_KEY
 import com.ar.jetpackarchitecture.util.BottomNavController
 import com.ar.jetpackarchitecture.util.setUpNavigation
+import com.ar.jetpackarchitecture.viewmodels.AuthViewModelFactory
+import com.bumptech.glide.RequestManager
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.android.synthetic.main.activity_main.*
+import javax.inject.Inject
+import javax.inject.Named
 
 class MainActivity : BaseActivity(),
-        BottomNavController.NavGraphProvider,
         BottomNavController.OnNavigationGraphChanged,
         BottomNavController.OnNavigationReselectedListener
 {
+
+    @Inject
+    @Named("AccountFragmentFactory")
+    lateinit var accountFragmentFactory : FragmentFactory
+
+    @Inject
+    @Named("BlogFragmentFactory")
+    lateinit var blogFragmentFactory : FragmentFactory
+
+    @Inject
+    @Named("CreateBlogFragmentFactory")
+    lateinit var createBlogFragmentFactory : FragmentFactory
+
+
 
     private lateinit var bottomNavigationView: BottomNavigationView
 
@@ -39,8 +60,11 @@ class MainActivity : BaseActivity(),
             R.id.main_nav_host_fragment, // our host
             R.id.nav_blog, // initial fragment when launching
             this,
-            this // the interfaces
         )
+    }
+
+    override fun inject() {
+        (application as BaseApplication).mainComponent().inject(this)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,6 +72,13 @@ class MainActivity : BaseActivity(),
         setContentView(R.layout.activity_main)
 
         setupActionBar()
+        setupBottomNavigationView(savedInstanceState)
+
+        subscribeObservers()
+        restoreSession(savedInstanceState)
+    }
+
+    private fun setupBottomNavigationView(savedInstanceState: Bundle?){
         bottomNavigationView = bottom_navigation_view
 
         bottomNavigationView.setUpNavigation(bottomNavController, this) // the extension we made in
@@ -55,10 +86,28 @@ class MainActivity : BaseActivity(),
 
         if(savedInstanceState == null){
             // first time in the app
+            bottomNavController.setupBottomNavigationBackStack(null)
             bottomNavController.onNavigationItemSelected()
         }
+        else{
+            (savedInstanceState[BOTTOM_NAV_BACKSTACK_KEY] as IntArray?)?.let { items ->
+                val backstack = BottomNavController.BackStack()
+                backstack.addAll(items.toTypedArray())
+                bottomNavController.setupBottomNavigationBackStack(backstack)
+            }
+        }
+    }
 
-        subscribeObservers()
+    private fun restoreSession(savedInstanceState: Bundle?){
+        savedInstanceState?.get(AUTH_TOKEN_KEY)?.let{ authToken ->
+            sessionManager.setValue(authToken as AuthToken)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putParcelable(AUTH_TOKEN_KEY, sessionManager.cachedToken.value)
+        outState.putIntArray(BOTTOM_NAV_BACKSTACK_KEY, bottomNavController.navigationBackStack.toIntArray())
+        super.onSaveInstanceState(outState)
     }
 
 
@@ -77,6 +126,7 @@ class MainActivity : BaseActivity(),
         val intent = Intent(this, AuthActivity::class.java)
         startActivity(intent)
         finish() // closes the activity
+        (application as BaseApplication).releaseMainComponent()
     }
 
     override fun displayProgressBar(boolean: Boolean) {
@@ -88,23 +138,6 @@ class MainActivity : BaseActivity(),
         }
     }
 
-
-
-    //Methods from BottomNavController
-    override fun getNavGraphId(itemId: Int) = when(itemId) {
-        R.id.nav_blog -> {
-            R.navigation.nav_blog
-        }
-        R.id.nav_account -> {
-            R.navigation.nav_account
-        }
-        R.id.nav_create_blog -> {
-            R.navigation.nav_create_blog
-        }
-        else -> {
-            R.navigation.nav_blog
-        }
-    }
 
     override fun onGraphChange() {
         expandAppBar() // because of a bug that hides the appBar
@@ -169,5 +202,7 @@ class MainActivity : BaseActivity(),
     override fun expandAppBar() {
         findViewById<AppBarLayout>(R.id.app_bar).setExpanded(true)
     }
+
+
 
 }

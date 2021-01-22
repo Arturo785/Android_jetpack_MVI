@@ -7,6 +7,7 @@ import com.ar.jetpackarchitecture.api.GenericResponse
 import com.ar.jetpackarchitecture.api.main.OpenApiMainService
 import com.ar.jetpackarchitecture.api.main.responses.BlogCreateUpdateResponse
 import com.ar.jetpackarchitecture.api.main.responses.BlogListSearchResponse
+import com.ar.jetpackarchitecture.di.main.MainScope
 import com.ar.jetpackarchitecture.models.AuthToken
 import com.ar.jetpackarchitecture.models.BlogPost
 import com.ar.jetpackarchitecture.persistence.BlogPostDAO
@@ -34,6 +35,8 @@ import okhttp3.RequestBody
 import java.lang.Exception
 import javax.inject.Inject
 
+
+@MainScope
 class BlogRepository @Inject constructor(
     val openApiMainService: OpenApiMainService,
     val blogPostDAO: BlogPostDAO,
@@ -360,6 +363,74 @@ class BlogRepository @Inject constructor(
 
         }.asLiveData()
     }
+
+    fun restoreBlogListFromCache(
+        query: String,
+        filterAndOrder: String,
+        page: Int
+    ): LiveData<DataState<BlogViewState>> {
+        return object: NetworkBoundResource<BlogListSearchResponse, List<BlogPost>, BlogViewState>(
+            sessionManager.isConnectedToInternet(),
+            false,
+            true,
+            false
+        ) {
+            override suspend fun createCacheRequestAndReturn() {
+                withContext(Dispatchers.Main){
+                    result.addSource(loadFromCache()){ viewState ->
+                        viewState.blogFields.isQueryInProgress = false
+                        if(page * PAGINATION_PAGE_SIZE > viewState.blogFields.blogList.size){
+                            viewState.blogFields.isQueryExhausted = true
+                        }
+                        onCompleteJob(DataState.data(
+                            viewState,
+                            null
+                        ))
+                    }
+                }
+            }
+
+            override suspend fun handleAPISuccessResponse(
+                response: ApiSuccessResponse<BlogListSearchResponse>
+            ) {
+                // ignore
+            }
+
+            override fun createCall(): LiveData<GenericApiResponse<BlogListSearchResponse>> {
+                return AbsentLiveData.create()
+            }
+
+            override fun loadFromCache(): LiveData<BlogViewState> {
+                return blogPostDAO.returnOrderedBlogQuery(
+                    query = query,
+                    filterAndOrder = filterAndOrder,
+                    page = page)
+                    .switchMap {
+                        object: LiveData<BlogViewState>(){
+                            override fun onActive() {
+                                super.onActive()
+                                value = BlogViewState(
+                                    BlogViewState.BlogFields(
+                                        blogList = it,
+                                        isQueryInProgress = true
+                                    )
+                                )
+                            }
+                        }
+                    }
+            }
+
+            override suspend fun updateLocalDb(cacheObject: List<BlogPost>?) {
+                // ignore
+            }
+
+            override fun setJob(job: Job) {
+                addJob("restoreBlogListFromCache", job)
+            }
+
+        }.asLiveData()
+    }
+
 
 
 

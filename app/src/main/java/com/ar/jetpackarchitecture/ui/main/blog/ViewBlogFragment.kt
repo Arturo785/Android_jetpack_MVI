@@ -4,28 +4,68 @@ import android.os.Bundle
 import android.util.Log
 import android.view.*
 import androidx.core.net.toUri
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.ar.jetpackarchitecture.R
+import com.ar.jetpackarchitecture.di.main.MainScope
 import com.ar.jetpackarchitecture.models.BlogPost
 import com.ar.jetpackarchitecture.ui.AreYouSureCallback
 import com.ar.jetpackarchitecture.ui.UIMessage
 import com.ar.jetpackarchitecture.ui.UIMessageType
+import com.ar.jetpackarchitecture.ui.main.blog.state.BLOG_VIEW_STATE_BUNDLE_KEY
 import com.ar.jetpackarchitecture.ui.main.blog.state.BlogStateEvent
+import com.ar.jetpackarchitecture.ui.main.blog.state.BlogViewState
 import com.ar.jetpackarchitecture.ui.main.blog.viewmodel.*
 import com.ar.jetpackarchitecture.util.DateUtils
 import com.ar.jetpackarchitecture.util.SuccessHandling.Companion.SUCCESS_BLOG_DELETED
+import com.bumptech.glide.RequestManager
 import kotlinx.android.synthetic.main.fragment_view_blog.*
+import javax.inject.Inject
 
-class ViewBlogFragment : BaseBlogFragment(){
+@MainScope
+class ViewBlogFragment @Inject constructor(
+    private val viewModelFactory : ViewModelProvider.Factory,
+    private val requestManager: RequestManager
+) : BaseBlogFragment(R.layout.fragment_view_blog){
 
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_view_blog, container, false)
+    val viewModel : BlogViewModel by viewModels{
+        viewModelFactory
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        cancelActiveJobs()
+
+        // Restore state after process death
+        savedInstanceState?.let { inState ->
+            (inState[BLOG_VIEW_STATE_BUNDLE_KEY] as BlogViewState?)?.let { viewState ->
+                viewModel.setViewState(viewState)
+            }
+        }
+    }
+
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        val viewState = viewModel.viewState.value
+
+        //clear the list. Don't want to save a large list to bundle.
+        viewState?.blogFields?.blogList = ArrayList()
+
+        outState.putParcelable(
+            BLOG_VIEW_STATE_BUNDLE_KEY,
+            viewState
+        )
+
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun cancelActiveJobs() {
+        viewModel.cancelActiveJobs()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -68,18 +108,20 @@ class ViewBlogFragment : BaseBlogFragment(){
 
     fun subscribeObservers(){
         viewModel.dataState.observe(viewLifecycleOwner, Observer{ dataState ->
-            stateChangeListener.onDataStateChange(dataState)
-            dataState.data?.let {data ->
-                data.data?.getContentIfNotHandled()?.let { viewState ->
-                    viewModel.setIsAuthorOfBlogPost(
-                        viewState.viewBlogFields.isTheAuthorOfBlog
-                    )
-                }
+            if(dataState != null) {
+                stateChangeListener.onDataStateChange(dataState)
+                dataState.data?.let { data ->
+                    data.data?.getContentIfNotHandled()?.let { viewState ->
+                        viewModel.setIsAuthorOfBlogPost(
+                            viewState.viewBlogFields.isTheAuthorOfBlog
+                        )
+                    }
 
-                data.response?.peekContent()?.let {response ->
-                    if(response.message == SUCCESS_BLOG_DELETED){
-                        viewModel.removeDeletedBlogPost()
-                        findNavController().popBackStack()
+                    data.response?.peekContent()?.let { response ->
+                        if (response.message == SUCCESS_BLOG_DELETED) {
+                            viewModel.removeDeletedBlogPost()
+                            findNavController().popBackStack()
+                        }
                     }
                 }
             }

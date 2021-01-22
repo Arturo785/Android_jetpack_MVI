@@ -7,20 +7,23 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
 import android.view.*
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import com.ar.jetpackarchitecture.R
+import com.ar.jetpackarchitecture.di.main.MainScope
 import com.ar.jetpackarchitecture.ui.*
+import com.ar.jetpackarchitecture.ui.main.blog.state.BLOG_VIEW_STATE_BUNDLE_KEY
 import com.ar.jetpackarchitecture.ui.main.blog.state.BlogStateEvent
-import com.ar.jetpackarchitecture.ui.main.blog.viewmodel.getImageUri
-import com.ar.jetpackarchitecture.ui.main.blog.viewmodel.getUpdatedBlogUri
-import com.ar.jetpackarchitecture.ui.main.blog.viewmodel.onBlogPostUpdateSuccess
-import com.ar.jetpackarchitecture.ui.main.blog.viewmodel.setUpdatedBlogFields
+import com.ar.jetpackarchitecture.ui.main.blog.state.BlogViewState
+import com.ar.jetpackarchitecture.ui.main.blog.viewmodel.*
 import com.ar.jetpackarchitecture.ui.main.create_blog.state.CreateBlogStateEvent
 import com.ar.jetpackarchitecture.util.Constants
 import com.ar.jetpackarchitecture.util.Constants.Companion.GALLERY_REQUEST_CODE
 import com.ar.jetpackarchitecture.util.ERROR_MUST_SELECT_IMAGE
 import com.ar.jetpackarchitecture.util.ERROR_SOMETHING_WRONG_WITH_IMAGE
+import com.bumptech.glide.RequestManager
 import com.theartofdev.edmodo.cropper.CropImage
 import com.theartofdev.edmodo.cropper.CropImageView
 import kotlinx.android.synthetic.main.fragment_create_blog.*
@@ -32,16 +35,49 @@ import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import java.io.File
+import javax.inject.Inject
 
-class UpdateBlogFragment : BaseBlogFragment(){
+@MainScope
+class UpdateBlogFragment @Inject constructor(
+    private val viewModelFactory : ViewModelProvider.Factory,
+    private val requestManager: RequestManager
+) : BaseBlogFragment(R.layout.fragment_update_blog){
 
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_update_blog, container, false)
+    val viewModel : BlogViewModel by viewModels{
+        viewModelFactory
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        cancelActiveJobs()
+
+        // Restore state after process death
+        savedInstanceState?.let { inState ->
+            (inState[BLOG_VIEW_STATE_BUNDLE_KEY] as BlogViewState?)?.let { viewState ->
+                viewModel.setViewState(viewState)
+            }
+        }
+    }
+
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        val viewState = viewModel.viewState.value
+
+        //clear the list. Don't want to save a large list to bundle.
+        viewState?.blogFields?.blogList = ArrayList()
+
+        outState.putParcelable(
+            BLOG_VIEW_STATE_BUNDLE_KEY,
+            viewState
+        )
+
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun cancelActiveJobs() {
+        viewModel.cancelActiveJobs()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -128,14 +164,16 @@ class UpdateBlogFragment : BaseBlogFragment(){
 
     fun subscribeObservers(){
         viewModel.dataState.observe(viewLifecycleOwner, Observer { dataState ->
-            stateChangeListener.onDataStateChange(dataState)
-            dataState.data?.let{ data ->
-                data.data?.getContentIfNotHandled()?.let{ viewState ->
+            if(dataState != null) {
+                stateChangeListener.onDataStateChange(dataState)
+                dataState.data?.let { data ->
+                    data.data?.getContentIfNotHandled()?.let { viewState ->
 
-                    // if this is not null, the blogpost was updated
-                    viewState.viewBlogFields.blogPost?.let{ blogPost ->
-                        viewModel.onBlogPostUpdateSuccess(blogPost).let {
-                            findNavController().popBackStack()
+                        // if this is not null, the blogpost was updated
+                        viewState.viewBlogFields.blogPost?.let { blogPost ->
+                            viewModel.onBlogPostUpdateSuccess(blogPost).let {
+                                findNavController().popBackStack()
+                            }
                         }
                     }
                 }

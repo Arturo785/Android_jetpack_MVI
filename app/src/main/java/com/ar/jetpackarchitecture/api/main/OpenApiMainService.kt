@@ -4,12 +4,15 @@ import androidx.lifecycle.LiveData
 import com.ar.jetpackarchitecture.api.GenericResponse
 import com.ar.jetpackarchitecture.api.main.responses.BlogCreateUpdateResponse
 import com.ar.jetpackarchitecture.api.main.responses.BlogListSearchResponse
+import com.ar.jetpackarchitecture.di.main.MainScope
 import com.ar.jetpackarchitecture.models.AccountProperties
 import com.ar.jetpackarchitecture.util.GenericApiResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.http.*
 
+
+@MainScope
 interface OpenApiMainService {
 
     @GET("account/properties")

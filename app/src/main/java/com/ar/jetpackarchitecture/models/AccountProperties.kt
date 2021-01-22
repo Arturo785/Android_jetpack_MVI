@@ -1,10 +1,13 @@
 package com.ar.jetpackarchitecture.models
 
 
+import android.os.Parcelable
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.google.gson.annotations.Expose
+import kotlinx.android.parcel.Parcelize
 
+@Parcelize
 @Entity(tableName = "account_properties")
 data class AccountProperties(
 
@@ -18,4 +21,4 @@ data class AccountProperties(
     @Expose
     var username: String,
 
-)
+) : Parcelable

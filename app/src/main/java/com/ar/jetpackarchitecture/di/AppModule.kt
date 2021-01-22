@@ -24,8 +24,9 @@ import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Singleton
 
 @Module
-class AppModule{
+object AppModule{
 
+    @JvmStatic
     @Singleton
     @Provides
     fun providesGsonBuilder(): Gson {
@@ -33,6 +34,7 @@ class AppModule{
     }
 
 
+    @JvmStatic
     @Singleton
     @Provides
     fun providesRetrofitBuilder(gson : Gson): Retrofit.Builder {
@@ -43,6 +45,7 @@ class AppModule{
 
     }
 
+    @JvmStatic
     @Singleton
     @Provides
     fun provideAppDb(app: Application): AppDatabase {
@@ -52,18 +55,21 @@ class AppModule{
             .build()
     }
 
+    @JvmStatic
     @Singleton
     @Provides
     fun provideAuthTokenDao(db: AppDatabase): AuthTokenDAO {
         return db.getAuthTokenDAO()
     }
 
+    @JvmStatic
     @Singleton
     @Provides
     fun provideAccountPropertiesDao(db: AppDatabase): AccountPropertiesDAO {
         return db.getAccountPropertiesDAO()
     }
 
+    @JvmStatic
     @Singleton
     @Provides
     fun provideRequestOptions(): RequestOptions {
@@ -72,6 +78,7 @@ class AppModule{
             .error(R.drawable.default_image)
     }
 
+    @JvmStatic
     @Singleton
     @Provides
     fun provideGlideInstance(application: Application, requestOptions: RequestOptions): RequestManager {
@@ -79,12 +86,14 @@ class AppModule{
             .setDefaultRequestOptions(requestOptions)
     }
 
+    @JvmStatic
     @Singleton
     @Provides
     fun provideSharedPreferences(application: Application) : SharedPreferences{
         return application.getSharedPreferences(PreferenceKeys.APP_PREFERENCES, Context.MODE_PRIVATE)
     }
 
+    @JvmStatic
     @Singleton
     @Provides
     fun provideSharedPreferencesEditor(sharedPreferences: SharedPreferences) : SharedPreferences.Editor{

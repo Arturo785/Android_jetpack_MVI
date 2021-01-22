@@ -6,30 +6,38 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
 import com.ar.jetpackarchitecture.R
+import com.ar.jetpackarchitecture.di.auth.AuthScope
 import com.ar.jetpackarchitecture.models.AuthToken
 import com.ar.jetpackarchitecture.ui.auth.state.AuthStateEvent
 import com.ar.jetpackarchitecture.ui.auth.state.LoginFields
 import kotlinx.android.synthetic.main.fragment_login.*
+import javax.inject.Inject
+
+@AuthScope
+class LoginFragment
+@Inject constructor(
+    private val viewModelFactory: ViewModelProvider.Factory
+) : Fragment(R.layout.fragment_login,){
+
+    val viewModel : AuthViewModel by viewModels {
+        viewModelFactory
+    }
 
 
-class LoginFragment : BaseAuthFragment(){
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.fragment_login, container, false)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        viewModel.cancelActiveJobs()
     }
 
     // they take the onSuper from BaseAuthFragment because of the inheritance
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // inherits from the BaseAuthFragment therefore has access to TAG and ViewModel
-        Log.d(TAG, "LoginFragment: ${viewModel.hashCode()}: ")
+
 
         login_button.setOnClickListener {
             login()

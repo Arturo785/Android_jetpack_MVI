@@ -1,6 +1,7 @@
 package com.ar.jetpackarchitecture.ui.main.blog.viewmodel
 
 import android.net.Uri
+import android.os.Parcelable
 import com.ar.jetpackarchitecture.models.BlogPost
 
 
@@ -99,6 +100,18 @@ fun BlogViewModel.updateListItem(newBlogPost: BlogPost){
     }
 
     update.blogFields.blogList = list
+    setViewState(update)
+}
+
+fun BlogViewModel.setLayoutManagerState(layoutManagerState : Parcelable){
+    val update = getCurrentViewStateOrNew()
+    update.blogFields.layoutManagerState = layoutManagerState
+    setViewState(update)
+}
+
+fun BlogViewModel.clearLayoutManagerState(){
+    val update = getCurrentViewStateOrNew()
+    update.blogFields.layoutManagerState = null
     setViewState(update)
 }
 

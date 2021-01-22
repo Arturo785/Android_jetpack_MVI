@@ -47,6 +47,7 @@ class BlogViewModel @Inject constructor(
         when(stateEvent){
 
             is BlogStateEvent.BlogSearchEvent -> {
+                clearLayoutManagerState()
                 return sessionManager.cachedToken.value?.let {authToken ->
                     blogRepository.searchBlogPosts(
                         authToken,
@@ -55,6 +56,14 @@ class BlogViewModel @Inject constructor(
                         getPage()
                     )
                 }?: AbsentLiveData.create()
+            }
+
+            is BlogStateEvent.RestoreBlogListFromCache -> {
+                return blogRepository.restoreBlogListFromCache(
+                    query = getSearchQuery(),
+                    filterAndOrder = getOrder() + getFilter(),
+                    page = getPage()
+                )
             }
 
             is BlogStateEvent.CheckAuthorOfBlogPost -> {

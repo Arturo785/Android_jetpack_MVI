@@ -3,14 +3,14 @@ package com.ar.jetpackarchitecture.ui.auth
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
-import android.util.Log
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.view.animation.TranslateAnimation
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import com.ar.jetpackarchitecture.R
 import com.ar.jetpackarchitecture.ui.DataState
@@ -22,9 +22,23 @@ import kotlinx.android.synthetic.main.fragment_forgot_password.*
 import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 
-class ForgotPasswordFragment : BaseAuthFragment(){
+class ForgotPasswordFragment
+@Inject constructor(
+    private val viewModelFactory: ViewModelProvider.Factory
+) : Fragment(R.layout.fragment_forgot_password,){
+
+    val viewModel : AuthViewModel by viewModels {
+        viewModelFactory
+    }
+
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        viewModel.cancelActiveJobs()
+    }
 
     lateinit var webView : WebView
 
@@ -76,13 +90,6 @@ class ForgotPasswordFragment : BaseAuthFragment(){
         }
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.fragment_forgot_password, container, false)
-    }
 
     // they take the onSuper from BaseAuthFragment because of the inheritance
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -90,7 +97,6 @@ class ForgotPasswordFragment : BaseAuthFragment(){
 
         webView = webview
         // inherits from the BaseAuthFragment therefore has access to TAG and ViewModel
-        Log.d(TAG, "ForgotPassword: ${viewModel.hashCode()}: ")
 
         loadPasswordResetWebView()
 
@@ -127,7 +133,7 @@ class ForgotPasswordFragment : BaseAuthFragment(){
             stateChangeListener = context as DataStateChangeListener
         }
         catch (e : ClassCastException){
-            Log.e(TAG, "onAttach: forgotPassword must implement dataStateChangeListener", )
+
         }
     }
 

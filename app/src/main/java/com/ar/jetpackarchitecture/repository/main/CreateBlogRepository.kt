@@ -3,6 +3,7 @@ package com.ar.jetpackarchitecture.repository.main
 import androidx.lifecycle.LiveData
 import com.ar.jetpackarchitecture.api.main.OpenApiMainService
 import com.ar.jetpackarchitecture.api.main.responses.BlogCreateUpdateResponse
+import com.ar.jetpackarchitecture.di.main.MainScope
 import com.ar.jetpackarchitecture.models.AuthToken
 import com.ar.jetpackarchitecture.models.BlogPost
 import com.ar.jetpackarchitecture.persistence.BlogPostDAO
@@ -25,6 +26,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import javax.inject.Inject
 
+@MainScope
 class CreateBlogRepository
 @Inject
 constructor(

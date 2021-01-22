@@ -1,33 +1,38 @@
 package com.ar.jetpackarchitecture.ui.auth
 
 import android.os.Bundle
-import android.util.Log
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
 import com.ar.jetpackarchitecture.R
+import com.ar.jetpackarchitecture.di.auth.AuthScope
 import com.ar.jetpackarchitecture.ui.auth.state.AuthStateEvent
 import com.ar.jetpackarchitecture.ui.auth.state.RegistrationFields
 import kotlinx.android.synthetic.main.fragment_register.*
+import javax.inject.Inject
 
 
-class RegisterFragment : BaseAuthFragment(){
+@AuthScope
+class RegisterFragment
+@Inject constructor(
+    private val viewModelFactory: ViewModelProvider.Factory
+) : Fragment(R.layout.fragment_register,){
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.fragment_register, container, false)
+    val viewModel : AuthViewModel by viewModels {
+        viewModelFactory
     }
 
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        viewModel.cancelActiveJobs()
+    }
     // they take the onSuper from BaseAuthFragment because of the inheritance
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // inherits from the BaseAuthFragment therefore has access to TAG and ViewModel
-        Log.d(TAG, "RegisterFragment: ${viewModel.hashCode()}: ")
 
         register_button.setOnClickListener {
             register()

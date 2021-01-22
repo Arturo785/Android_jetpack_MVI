@@ -4,34 +4,27 @@ import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import androidx.annotation.LayoutRes
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.ViewModelProvider
+import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.NavigationUI
 import com.ar.jetpackarchitecture.R
 import com.ar.jetpackarchitecture.ui.DataStateChangeListener
 import com.ar.jetpackarchitecture.ui.UICommunicationListener
-import com.ar.jetpackarchitecture.viewmodels.ViewModelProviderFactory
-import com.bumptech.glide.RequestManager
-import dagger.android.support.DaggerFragment
-import javax.inject.Inject
 
-abstract class BaseCreateBlogFragment : DaggerFragment(){
+abstract class BaseCreateBlogFragment constructor(
+    @LayoutRes
+    private val layoutRes: Int
+): Fragment(layoutRes) {
 
     val TAG: String = "AppDebug"
 
-    @Inject
-    lateinit var requestManager : RequestManager
-
-    @Inject
-    lateinit var providerFactory: ViewModelProviderFactory
 
     lateinit var stateChangeListener: DataStateChangeListener
 
     lateinit var uiCommunicationListener: UICommunicationListener
-
-    lateinit var viewModel: CreateBlogViewModel
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -46,22 +39,38 @@ abstract class BaseCreateBlogFragment : DaggerFragment(){
         }catch(e: ClassCastException){
             Log.e(TAG, "$context must implement UICommunicationListener" )
         }
+
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupActionBarWithNavController(R.id.createBlogFragment, activity as AppCompatActivity)
+    }
 
-        viewModel = activity?.run {
-            ViewModelProvider(this, providerFactory).get(CreateBlogViewModel::class.java)
-        }?: throw Exception("Invalid Activity")
+/*    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
 
         cancelActiveJobs()
+
+        // Restore state after process death
+        savedInstanceState?.let { inState ->
+            (inState[CREATE_BLOG_VIEW_KEY] as CreateBlogViewState?)?.let { viewState ->
+                viewModel.setViewState(viewState)
+            }
+        }
     }
 
-    fun cancelActiveJobs() {
-        viewModel.cancelActiveJobs()
-    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putParcelable(
+            CREATE_BLOG_VIEW_KEY,
+            viewModel.viewState.value
+        )
+
+        super.onSaveInstanceState(outState)
+    }*/
+
+    abstract fun cancelActiveJobs()
 
 
     // deletes the backArrow on the fragments inside the setOf
