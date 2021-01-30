@@ -5,7 +5,8 @@ import android.os.Parcelable
 import kotlinx.android.parcel.Parcelize
 
 
-const val CREATE_BLOG_VIEW_KEY = "CREATE_BLOG_VIEW_KEY"
+
+const val CREATE_BLOG_VIEW_STATE_BUNDLE_KEY = "com.codingwithmitch.openapi.ui.main.create_blog.state.CreateBlogViewState"
 
 @Parcelize
 data class CreateBlogViewState(

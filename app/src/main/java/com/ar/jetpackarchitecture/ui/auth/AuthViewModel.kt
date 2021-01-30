@@ -1,121 +1,118 @@
 package com.ar.jetpackarchitecture.ui.auth
 
 import androidx.lifecycle.LiveData
-import androidx.lifecycle.ViewModel
-import com.ar.jetpackarchitecture.api.auth.network_responses.LoginResponse
-import com.ar.jetpackarchitecture.api.auth.network_responses.RegistrationResponse
+import com.ar.jetpackarchitecture.di.auth.AuthScope
 import com.ar.jetpackarchitecture.models.AuthToken
 import com.ar.jetpackarchitecture.repository.auth.AuthRepository
+import com.ar.jetpackarchitecture.repository.auth.AuthRepositoryImpl
 import com.ar.jetpackarchitecture.ui.BaseViewModel
-import com.ar.jetpackarchitecture.ui.DataState
 import com.ar.jetpackarchitecture.ui.auth.state.AuthStateEvent
 import com.ar.jetpackarchitecture.ui.auth.state.AuthViewState
 import com.ar.jetpackarchitecture.ui.auth.state.LoginFields
 import com.ar.jetpackarchitecture.ui.auth.state.RegistrationFields
-import com.ar.jetpackarchitecture.util.AbsentLiveData
-import com.ar.jetpackarchitecture.util.GenericApiResponse
-import kotlinx.coroutines.InternalCoroutinesApi
+import com.ar.jetpackarchitecture.util.*
+import com.ar.jetpackarchitecture.util.ErrorHandling.Companion.INVALID_STATE_EVENT
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
 
-class AuthViewModel @Inject constructor(
+@ExperimentalCoroutinesApi
+@FlowPreview
+@AuthScope
+class AuthViewModel
+@Inject
+constructor(
     val authRepository: AuthRepository
-) : BaseViewModel<AuthStateEvent, AuthViewState>()
+): BaseViewModel<AuthViewState>()
 {
 
+    override fun handleNewData(data: AuthViewState) {
+        data.authToken?.let { authToken ->
+            setAuthToken(authToken)
+        }
+    }
 
+    override fun setStateEvent(stateEvent: StateEvent) {
 
-    override fun handleStateEvent(stateEvent: AuthStateEvent): LiveData<DataState<AuthViewState>> {
-        when(stateEvent){
-            // because of the sealed class we can receive custom responses from each case
+        val job: Flow<DataState<AuthViewState>> = when(stateEvent){
+
             is AuthStateEvent.LoginAttemptEvent -> {
-                return authRepository.attemptLogin(stateEvent.email, stateEvent.password)
-            }
-            is AuthStateEvent.RegisterAttemptEvent -> {
-                return authRepository.attemptRegistration(
-                    stateEvent.email,
-                    stateEvent.username,
-                    stateEvent.password,
-                    stateEvent.password2
+                authRepository.attemptLogin(
+                    stateEvent = stateEvent,
+                    email = stateEvent.email,
+                    password = stateEvent.password
                 )
             }
-            is AuthStateEvent.CheckPreviousAuthEvent -> {
-                return authRepository.checkPreviousAuthUser()
+
+            is AuthStateEvent.RegisterAttemptEvent -> {
+                authRepository.attemptRegistration(
+                    stateEvent = stateEvent,
+                    email = stateEvent.email,
+                    username = stateEvent.username,
+                    password = stateEvent.password,
+                    confirmPassword = stateEvent.confirm_password
+                )
             }
 
-            is AuthStateEvent.None -> {
-                return object : LiveData<DataState<AuthViewState>>(){
+            is AuthStateEvent.CheckPreviousAuthEvent -> {
+                authRepository.checkPreviousAuthUser(stateEvent)
+            }
 
-                    override fun onActive() {
-                        super.onActive()
-                        value = DataState.data(
-                            null,
-                            null
+            else -> {
+                flow{
+                    emit(
+                        DataState.error<AuthViewState>(
+                            response = Response(
+                                message = INVALID_STATE_EVENT,
+                                uiComponentType = UIComponentType.None,
+                                messageType = MessageType.Error
+                            ),
+                            stateEvent = stateEvent
                         )
-                    }
+                    )
                 }
             }
         }
-    }
-
-    fun setRegistrationFields(registrationFields: RegistrationFields){
-        // gets the old ones or new
-        val update = getCurrentViewStateOrNew()
-
-        if(update.registrationFields == registrationFields){
-            return
-            //nothing has change
-        }
-        update.registrationFields = registrationFields
-
-        // the one from the baseViewModel
-        _viewState.value = update
-    }
-
-    fun setLoginFields(loginFields: LoginFields){
-        // gets the old ones or new
-        val update = getCurrentViewStateOrNew()
-
-        if(update.loginFields == loginFields){
-            return
-            //nothing has change
-        }
-        update.loginFields = loginFields
-
-        // the one from the baseViewModel
-        _viewState.value = update
-    }
-
-    fun setTokenFields(authToken: AuthToken){
-        // gets the old ones or new
-        val update = getCurrentViewStateOrNew()
-
-        if(update.authToken == authToken){
-            return
-            //nothing has change
-        }
-        update.authToken = authToken
-
-        // the one from the baseViewModel
-        _viewState.value = update
+        launchJob(stateEvent, job)
     }
 
     override fun initNewViewState(): AuthViewState {
         return AuthViewState()
     }
 
-    fun cancelActiveJobs(){
-        handlePendingData()
-        authRepository.cancelActiveJobs()
+    fun setRegistrationFields(registrationFields: RegistrationFields){
+        val update = getCurrentViewStateOrNew()
+        if(update.registrationFields == registrationFields){
+            return
+        }
+        update.registrationFields = registrationFields
+        setViewState(update)
     }
 
-    fun handlePendingData(){
-        setStateEvent(AuthStateEvent.None)
+    fun setLoginFields(loginFields: LoginFields){
+        val update = getCurrentViewStateOrNew()
+        if(update.loginFields == loginFields){
+            return
+        }
+        update.loginFields = loginFields
+        setViewState(update)
     }
 
-    // when the viewModel gets cleared
+    fun setAuthToken(authToken: AuthToken){
+        val update = getCurrentViewStateOrNew()
+        if(update.authToken == authToken){
+            return
+        }
+        update.authToken = authToken
+        setViewState(update)
+    }
+
     override fun onCleared() {
         super.onCleared()
         cancelActiveJobs()
     }
+
 
 }

@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
 import android.util.Log
 import android.view.*
 import androidx.fragment.app.viewModels
@@ -13,46 +12,42 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import com.ar.jetpackarchitecture.R
 import com.ar.jetpackarchitecture.di.main.MainScope
-import com.ar.jetpackarchitecture.ui.*
 import com.ar.jetpackarchitecture.ui.main.blog.state.BLOG_VIEW_STATE_BUNDLE_KEY
 import com.ar.jetpackarchitecture.ui.main.blog.state.BlogStateEvent
 import com.ar.jetpackarchitecture.ui.main.blog.state.BlogViewState
 import com.ar.jetpackarchitecture.ui.main.blog.viewmodel.*
-import com.ar.jetpackarchitecture.ui.main.create_blog.state.CreateBlogStateEvent
-import com.ar.jetpackarchitecture.util.Constants
+import com.ar.jetpackarchitecture.util.*
 import com.ar.jetpackarchitecture.util.Constants.Companion.GALLERY_REQUEST_CODE
-import com.ar.jetpackarchitecture.util.ERROR_MUST_SELECT_IMAGE
-import com.ar.jetpackarchitecture.util.ERROR_SOMETHING_WRONG_WITH_IMAGE
+import com.ar.jetpackarchitecture.util.ErrorHandling.Companion.SOMETHING_WRONG_WITH_IMAGE
+import com.ar.jetpackarchitecture.util.SuccessHandling.Companion.SUCCESS_BLOG_UPDATED
 import com.bumptech.glide.RequestManager
 import com.theartofdev.edmodo.cropper.CropImage
 import com.theartofdev.edmodo.cropper.CropImageView
-import kotlinx.android.synthetic.main.fragment_create_blog.*
 import kotlinx.android.synthetic.main.fragment_update_blog.*
 import kotlinx.android.synthetic.main.fragment_update_blog.blog_body
 import kotlinx.android.synthetic.main.fragment_update_blog.blog_image
 import kotlinx.android.synthetic.main.fragment_update_blog.blog_title
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import java.io.File
 import javax.inject.Inject
 
-@MainScope
-class UpdateBlogFragment @Inject constructor(
-    private val viewModelFactory : ViewModelProvider.Factory,
+
+@FlowPreview
+@ExperimentalCoroutinesApi
+class UpdateBlogFragment
+@Inject
+constructor(
+    viewModelFactory: ViewModelProvider.Factory,
     private val requestManager: RequestManager
-) : BaseBlogFragment(R.layout.fragment_update_blog){
-
-
-    val viewModel : BlogViewModel by viewModels{
-        viewModelFactory
-    }
+): BaseBlogFragment(R.layout.fragment_update_blog, viewModelFactory)
+{
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        cancelActiveJobs()
-
         // Restore state after process death
         savedInstanceState?.let { inState ->
             (inState[BLOG_VIEW_STATE_BUNDLE_KEY] as BlogViewState?)?.let { viewState ->
@@ -61,7 +56,10 @@ class UpdateBlogFragment @Inject constructor(
         }
     }
 
-
+    /**
+     * !IMPORTANT!
+     * Must save ViewState b/c in event of process death the LiveData in ViewModel will be lost
+     */
     override fun onSaveInstanceState(outState: Bundle) {
         val viewState = viewModel.viewState.value
 
@@ -72,12 +70,7 @@ class UpdateBlogFragment @Inject constructor(
             BLOG_VIEW_STATE_BUNDLE_KEY,
             viewState
         )
-
         super.onSaveInstanceState(outState)
-    }
-
-    override fun cancelActiveJobs() {
-        viewModel.cancelActiveJobs()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -86,7 +79,7 @@ class UpdateBlogFragment @Inject constructor(
         subscribeObservers()
 
         image_container.setOnClickListener {
-            if(stateChangeListener.isStoragePermissionGranted()){
+            if(uiCommunicationListener.isStoragePermissionGranted()){
                 pickFromGallery()
             }
         }
@@ -113,17 +106,17 @@ class UpdateBlogFragment @Inject constructor(
     }
 
     private fun showImageSelectionError(){
-        stateChangeListener.onDataStateChange(
-            DataState(
-                Event(StateError(
-                    Response(
-                        "Something went wrong with the image.",
-                        ResponseType.Dialog
-                    )
-                )),
-                Loading(isLoading = false),
-                Data(Event.dataEvent(null), null)
-            )
+        uiCommunicationListener.onResponseReceived(
+            response = Response(
+                message = SOMETHING_WRONG_WITH_IMAGE,
+                uiComponentType = UIComponentType.Dialog,
+                messageType = MessageType.Error
+            ),
+            stateMessageCallback = object: StateMessageCallback{
+                override fun removeMessageFromStack() {
+                    viewModel.clearStateMessage()
+                }
+            }
         )
     }
 
@@ -132,7 +125,6 @@ class UpdateBlogFragment @Inject constructor(
         if (resultCode == Activity.RESULT_OK) {
             when (requestCode) {
 
-                // requests the crop intent , to see the crop activity
                 GALLERY_REQUEST_CODE -> {
                     data?.data?.let { uri ->
                         activity?.let{
@@ -141,17 +133,12 @@ class UpdateBlogFragment @Inject constructor(
                     }?: showImageSelectionError()
                 }
 
-                // crop went ok
                 CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE -> {
                     Log.d(TAG, "CROP: CROP_IMAGE_ACTIVITY_REQUEST_CODE")
                     val result = CropImage.getActivityResult(data)
                     val resultUri = result.uri
                     Log.d(TAG, "CROP: CROP_IMAGE_ACTIVITY_REQUEST_CODE: uri: ${resultUri}")
-                    viewModel.setUpdatedBlogFields(
-                        title = null,
-                        body = null,
-                        uri = resultUri
-                    )
+                    viewModel.setUpdatedUri(resultUri)
                 }
 
                 CropImage.CROP_IMAGE_ACTIVITY_RESULT_ERROR_CODE -> {
@@ -163,22 +150,6 @@ class UpdateBlogFragment @Inject constructor(
     }
 
     fun subscribeObservers(){
-        viewModel.dataState.observe(viewLifecycleOwner, Observer { dataState ->
-            if(dataState != null) {
-                stateChangeListener.onDataStateChange(dataState)
-                dataState.data?.let { data ->
-                    data.data?.getContentIfNotHandled()?.let { viewState ->
-
-                        // if this is not null, the blogpost was updated
-                        viewState.viewBlogFields.blogPost?.let { blogPost ->
-                            viewModel.onBlogPostUpdateSuccess(blogPost).let {
-                                findNavController().popBackStack()
-                            }
-                        }
-                    }
-                }
-            }
-        })
 
         viewModel.viewState.observe(viewLifecycleOwner, Observer { viewState ->
             viewState.updatedBlogFields.let{ updatedBlogFields ->
@@ -189,12 +160,37 @@ class UpdateBlogFragment @Inject constructor(
                 )
             }
         })
+
+        viewModel.numActiveJobs.observe(viewLifecycleOwner, Observer { jobCounter ->
+            uiCommunicationListener.displayProgressBar(viewModel.areAnyJobsActive())
+        })
+
+        viewModel.stateMessage.observe(viewLifecycleOwner, Observer { stateMessage ->
+
+            stateMessage?.let {
+
+                if(stateMessage.response.message.equals(SUCCESS_BLOG_UPDATED)){
+                    viewModel.updateListItem()
+                }
+
+                uiCommunicationListener.onResponseReceived(
+                    response = it.response,
+                    stateMessageCallback = object: StateMessageCallback {
+                        override fun removeMessageFromStack() {
+                            viewModel.clearStateMessage()
+                        }
+                    }
+                )
+            }
+        })
     }
 
     fun setBlogProperties(title: String?, body: String?, image: Uri?){
-        requestManager
-            .load(image)
-            .into(blog_image)
+        image?.let {
+            requestManager
+                .load(it)
+                .into(blog_image)
+        }
         blog_title.setText(title)
         blog_body.setText(body)
     }
@@ -229,7 +225,7 @@ class UpdateBlogFragment @Inject constructor(
                 multipartBody
             )
         )
-        stateChangeListener.hideSoftKeyboard()
+        uiCommunicationListener.hideSoftKeyboard()
     }
 
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
@@ -246,14 +242,10 @@ class UpdateBlogFragment @Inject constructor(
         return super.onOptionsItemSelected(item)
     }
 
-
-    // to "save" when rotate screen
     override fun onPause() {
         super.onPause()
-        viewModel.setUpdatedBlogFields(
-            uri = null,
-            title = blog_title.text.toString(),
-            body = blog_body.text.toString()
-        )
+        viewModel.setUpdatedTitle(blog_title.text.toString())
+        viewModel.setUpdatedBody(blog_body.text.toString())
     }
 }
+

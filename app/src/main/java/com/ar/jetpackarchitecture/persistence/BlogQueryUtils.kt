@@ -1,6 +1,5 @@
 package com.ar.jetpackarchitecture.persistence
 
-import androidx.lifecycle.LiveData
 import com.ar.jetpackarchitecture.models.BlogPost
 import com.ar.jetpackarchitecture.persistence.BlogQueryUtils.Companion.ORDER_BY_ASC_DATE_UPDATED
 import com.ar.jetpackarchitecture.persistence.BlogQueryUtils.Companion.ORDER_BY_ASC_USERNAME
@@ -27,11 +26,11 @@ class BlogQueryUtils {
 }
 
 
-fun BlogPostDAO.returnOrderedBlogQuery(
+suspend fun BlogPostDAO.returnOrderedBlogQuery(
     query: String,
     filterAndOrder: String,
     page: Int
-): LiveData<List<BlogPost>> {
+): List<BlogPost> {
 
     when{
 

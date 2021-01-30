@@ -5,9 +5,11 @@ import com.ar.jetpackarchitecture.api.auth.OpenAPIAuthService
 import com.ar.jetpackarchitecture.persistence.AccountPropertiesDAO
 import com.ar.jetpackarchitecture.persistence.AuthTokenDAO
 import com.ar.jetpackarchitecture.repository.auth.AuthRepository
+import com.ar.jetpackarchitecture.repository.auth.AuthRepositoryImpl
 import com.ar.jetpackarchitecture.session.SessionManager
 import dagger.Module
 import dagger.Provides
+import kotlinx.coroutines.FlowPreview
 import retrofit2.Retrofit
 
 @Module
@@ -23,6 +25,7 @@ object AuthModule{
             .create(OpenAPIAuthService::class.java)
     }
 
+    @FlowPreview
     @JvmStatic
     @AuthScope
     @Provides
@@ -34,7 +37,7 @@ object AuthModule{
         sharedPreferences: SharedPreferences,
         sharedPreferencesEditor: SharedPreferences.Editor
     ): AuthRepository {
-        return AuthRepository(
+        return AuthRepositoryImpl(
             authTokenDao,
             accountPropertiesDao,
             openApiAuthService,

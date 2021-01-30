@@ -2,66 +2,83 @@ package com.ar.jetpackarchitecture.ui.main.blog.viewmodel
 
 import android.net.Uri
 import com.ar.jetpackarchitecture.models.BlogPost
+import com.ar.jetpackarchitecture.persistence.BlogQueryUtils.Companion.BLOG_FILTER_DATE_UPDATED
+import com.ar.jetpackarchitecture.persistence.BlogQueryUtils.Companion.BLOG_ORDER_DESC
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 
 
-fun BlogViewModel.getSearchQuery(): String{
-    getCurrentViewStateOrNew().let{
-        return it.blogFields.searchQuery
-    }
-}
-
-fun BlogViewModel.getPage(): Int{
-    getCurrentViewStateOrNew().let{
-        return it.blogFields.page
-    }
-}
-
+@FlowPreview
+@ExperimentalCoroutinesApi
 fun BlogViewModel.getIsQueryExhausted(): Boolean {
-    getCurrentViewStateOrNew().let {
-        return it.blogFields.isQueryExhausted
-    }
+    return getCurrentViewStateOrNew().blogFields.isQueryExhausted
+        ?: false
 }
 
-fun BlogViewModel.getIsQueryInProgress(): Boolean {
-    getCurrentViewStateOrNew().let {
-        return it.blogFields.isQueryInProgress
-    }
-}
-
+@FlowPreview
+@ExperimentalCoroutinesApi
 fun BlogViewModel.getFilter(): String {
-    getCurrentViewStateOrNew().let {
-        return it.blogFields.filter
-    }
+    return getCurrentViewStateOrNew().blogFields.filter
+        ?: BLOG_FILTER_DATE_UPDATED
 }
 
+@FlowPreview
+@ExperimentalCoroutinesApi
 fun BlogViewModel.getOrder(): String {
-    getCurrentViewStateOrNew().let {
-        return it.blogFields.order
-    }
+    return getCurrentViewStateOrNew().blogFields.order
+        ?: BLOG_ORDER_DESC
 }
 
-fun BlogViewModel.getSlug(): String {
-    getCurrentViewStateOrNew().let {
-        return it.viewBlogFields.blogPost?.slug ?: ""
-    }
+@FlowPreview
+@ExperimentalCoroutinesApi
+fun BlogViewModel.getSearchQuery(): String {
+    return getCurrentViewStateOrNew().blogFields.searchQuery
+        ?: return ""
 }
 
-fun BlogViewModel.isAuthorOfBlogPost(): Boolean {
-    getCurrentViewStateOrNew().let {
-        return it.viewBlogFields.isTheAuthorOfBlog
-    }
+@FlowPreview
+@ExperimentalCoroutinesApi
+fun BlogViewModel.getPage(): Int{
+    return getCurrentViewStateOrNew().blogFields.page
+        ?: return 1
 }
 
+@FlowPreview
+@ExperimentalCoroutinesApi
+fun BlogViewModel.getSlug(): String{
+    getCurrentViewStateOrNew().let {
+        it.viewBlogFields.blogPost?.let {
+            return it.slug
+        }
+    }
+    return ""
+}
+
+@FlowPreview
+@ExperimentalCoroutinesApi
+fun BlogViewModel.isAuthorOfBlogPost(): Boolean{
+    return getCurrentViewStateOrNew().viewBlogFields.isAuthorOfBlogPost
+        ?: false
+}
+
+@FlowPreview
+@ExperimentalCoroutinesApi
 fun BlogViewModel.getBlogPost(): BlogPost {
     getCurrentViewStateOrNew().let {
-        return it.viewBlogFields.blogPost ?: getDummyBlogPost()
+        return it.viewBlogFields.blogPost?.let {
+            return it
+        }?: getDummyBlogPost()
     }
 }
 
-fun BlogViewModel.getDummyBlogPost(): BlogPost {
-    return BlogPost(1,"","","","",1,"")
+@FlowPreview
+@ExperimentalCoroutinesApi
+fun BlogViewModel.getDummyBlogPost(): BlogPost{
+    return BlogPost(-1, "" , "", "", "", 1, "")
 }
 
+@FlowPreview
+@ExperimentalCoroutinesApi
 fun BlogViewModel.getUpdatedBlogUri(): Uri? {
     getCurrentViewStateOrNew().let {
         it.updatedBlogFields.updatedImageUri?.let {
@@ -69,12 +86,6 @@ fun BlogViewModel.getUpdatedBlogUri(): Uri? {
         }
     }
     return null
-}
-
-fun BlogViewModel.getImageUri() : Uri?{
-    getCurrentViewStateOrNew().let {
-        return it.updatedBlogFields.updatedImageUri
-    }
 }
 
 

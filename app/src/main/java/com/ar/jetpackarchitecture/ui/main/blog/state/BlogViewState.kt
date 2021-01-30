@@ -13,35 +13,31 @@ const val BLOG_VIEW_STATE_BUNDLE_KEY = "BLOG_VIEW_STATE_KEY"
 data class BlogViewState (
 
     // BlogFragment vars
-    var blogFields: BlogFields = BlogFields(), // has an empty blogFields that has a emptyList and
-            // an empty searchQuery
+    var blogFields: BlogFields = BlogFields(),
 
+    // ViewBlogFragment vars
     var viewBlogFields: ViewBlogFields = ViewBlogFields(),
-
 
     // UpdateBlogFragment vars
     var updatedBlogFields: UpdatedBlogFields = UpdatedBlogFields()
 
-
-) : Parcelable {
-    // each one in here represents a fragment inside the blogNavGraph
+): Parcelable {
 
     @Parcelize
     data class BlogFields(
-        var blogList: List<BlogPost> = ArrayList<BlogPost>(),
-        var searchQuery: String = "",
-        var page : Int = 1,
-        var isQueryInProgress : Boolean = false,
-        var isQueryExhausted : Boolean = false,
-        var filter : String = ORDER_BY_ASC_DATE_UPDATED,
-        var order : String = BLOG_ORDER_ASC,
-        var layoutManagerState : Parcelable? = null
+        var blogList: List<BlogPost>? = null,
+        var searchQuery: String? = null,
+        var page: Int? = null,
+        var isQueryExhausted: Boolean? = null,
+        var filter: String? = null,
+        var order: String? = null,
+        var layoutManagerState: Parcelable? = null
     ) : Parcelable
 
     @Parcelize
     data class ViewBlogFields(
-        var blogPost : BlogPost? = null,
-        var isTheAuthorOfBlog : Boolean = false
+        var blogPost: BlogPost? = null,
+        var isAuthorOfBlogPost: Boolean? = null
     ) : Parcelable
 
     @Parcelize
@@ -50,5 +46,6 @@ data class BlogViewState (
         var updatedBlogBody: String? = null,
         var updatedImageUri: Uri? = null
     ) : Parcelable
-
 }
+
+

@@ -7,82 +7,47 @@ import android.view.View
 import androidx.annotation.LayoutRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.NavigationUI
 import com.ar.jetpackarchitecture.R
-import com.ar.jetpackarchitecture.ui.DataStateChangeListener
 import com.ar.jetpackarchitecture.ui.UICommunicationListener
+import com.ar.jetpackarchitecture.ui.main.blog.viewmodel.BlogViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 
 
-abstract class BaseBlogFragment constructor(
+@FlowPreview
+@ExperimentalCoroutinesApi
+abstract class BaseBlogFragment
+constructor(
     @LayoutRes
-    private val layoutRes: Int
-) : Fragment(layoutRes) {
+    private val layoutRes: Int,
+    private val viewModelFactory: ViewModelProvider.Factory
+): Fragment(layoutRes)
+{
 
-    val TAG: String = "BaseBlogFragment"
+    val TAG: String = "AppDebug"
 
-    lateinit var stateChangeListener: DataStateChangeListener
-
-    lateinit var uiCommunicationListener: UICommunicationListener
-
-/*    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        cancelActiveJobs()
-
-        // Restore state after process death
-        savedInstanceState?.let { inState ->
-            (inState[BLOG_VIEW_STATE_BUNDLE_KEY] as BlogViewState?)?.let { viewState ->
-                viewModel.setViewState(viewState)
-            }
-        }
-    }*/
-
-
-/*    override fun onSaveInstanceState(outState: Bundle) {
-        val viewState = viewModel.viewState.value
-
-        //clear the list. Don't want to save a large list to bundle.
-        viewState?.blogFields?.blogList = ArrayList()
-
-        outState.putParcelable(
-            BLOG_VIEW_STATE_BUNDLE_KEY,
-            viewState
-        )
-
-    super.onSaveInstanceState(outState)
-    }*/
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        try{
-            stateChangeListener = context as DataStateChangeListener
-        }catch(e: ClassCastException){
-            Log.e(TAG, "$context must implement DataStateChangeListener" )
-        }
-
-        try{
-            uiCommunicationListener = context as UICommunicationListener
-        }catch(e: ClassCastException){
-            Log.e(TAG, "$context must implement UICommunicationListener" )
-        }
-
+    val viewModel: BlogViewModel by viewModels{
+        viewModelFactory
     }
 
-    abstract fun cancelActiveJobs()
-
+    lateinit var uiCommunicationListener: UICommunicationListener
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupActionBarWithNavController(R.id.blogFragment, activity as AppCompatActivity)
-
+        setupChannel()
     }
 
-    // deletes the backArrow on the fragments inside the setOf
-    fun setupActionBarWithNavController(fragmentId : Int, activity : AppCompatActivity){
-        val appBarConfiguration = AppBarConfiguration(setOf(fragmentId))
 
+    private fun setupChannel() = viewModel.setupChannel()
+
+    fun setupActionBarWithNavController(fragmentId: Int, activity: AppCompatActivity){
+        val appBarConfiguration = AppBarConfiguration(setOf(fragmentId))
         NavigationUI.setupActionBarWithNavController(
             activity,
             findNavController(),
@@ -90,4 +55,13 @@ abstract class BaseBlogFragment constructor(
         )
     }
 
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        try{
+            uiCommunicationListener = context as UICommunicationListener
+        }catch(e: ClassCastException){
+            Log.e(TAG, "$context must implement UICommunicationListener" )
+        }
+
+    }
 }

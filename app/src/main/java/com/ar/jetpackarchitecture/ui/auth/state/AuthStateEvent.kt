@@ -1,18 +1,55 @@
 package com.ar.jetpackarchitecture.ui.auth.state
 
-sealed class AuthStateEvent {
+import com.ar.jetpackarchitecture.util.StateEvent
 
-    data class LoginAttemptEvent(val email : String, val password : String) : AuthStateEvent()
+sealed class AuthStateEvent: StateEvent {
+
+    data class LoginAttemptEvent(
+        val email: String,
+        val password: String
+    ): AuthStateEvent() {
+
+        override fun errorInfo(): String {
+            return "Login attempt failed."
+        }
+
+        override fun toString(): String {
+            return "LoginStateEvent"
+        }
+    }
 
     data class RegisterAttemptEvent(
-        val email : String,
-        val username : String,
-        val password : String,
-        val password2 : String
-    ) : AuthStateEvent()
+        val email: String,
+        val username: String,
+        val password: String,
+        val confirm_password: String
+    ): AuthStateEvent(){
 
-    object CheckPreviousAuthEvent : AuthStateEvent()
+        override fun errorInfo(): String {
+            return "Register attempt failed."
+        }
 
-    object None : AuthStateEvent()
+        override fun toString(): String {
+            return "RegisterAttemptEvent"
+        }
+    }
 
+    object CheckPreviousAuthEvent : AuthStateEvent() {
+
+        override fun errorInfo(): String {
+            return "Error checking for previously authenticated user."
+        }
+
+        override fun toString(): String {
+            return "CheckPreviousAuthEvent"
+        }
+    }
+
+    object None: AuthStateEvent() {
+
+        override fun errorInfo(): String {
+            return "None"
+        }
+
+    }
 }

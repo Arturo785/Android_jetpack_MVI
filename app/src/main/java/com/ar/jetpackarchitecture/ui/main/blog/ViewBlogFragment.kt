@@ -13,34 +13,30 @@ import com.ar.jetpackarchitecture.R
 import com.ar.jetpackarchitecture.di.main.MainScope
 import com.ar.jetpackarchitecture.models.BlogPost
 import com.ar.jetpackarchitecture.ui.AreYouSureCallback
-import com.ar.jetpackarchitecture.ui.UIMessage
-import com.ar.jetpackarchitecture.ui.UIMessageType
 import com.ar.jetpackarchitecture.ui.main.blog.state.BLOG_VIEW_STATE_BUNDLE_KEY
 import com.ar.jetpackarchitecture.ui.main.blog.state.BlogStateEvent
 import com.ar.jetpackarchitecture.ui.main.blog.state.BlogViewState
 import com.ar.jetpackarchitecture.ui.main.blog.viewmodel.*
-import com.ar.jetpackarchitecture.util.DateUtils
+import com.ar.jetpackarchitecture.util.*
 import com.ar.jetpackarchitecture.util.SuccessHandling.Companion.SUCCESS_BLOG_DELETED
 import com.bumptech.glide.RequestManager
 import kotlinx.android.synthetic.main.fragment_view_blog.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import javax.inject.Inject
 
-@MainScope
-class ViewBlogFragment @Inject constructor(
-    private val viewModelFactory : ViewModelProvider.Factory,
+@FlowPreview
+@ExperimentalCoroutinesApi
+class ViewBlogFragment
+@Inject
+constructor(
+    viewModelFactory: ViewModelProvider.Factory,
     private val requestManager: RequestManager
-) : BaseBlogFragment(R.layout.fragment_view_blog){
-
-
-    val viewModel : BlogViewModel by viewModels{
-        viewModelFactory
-    }
+): BaseBlogFragment(R.layout.fragment_view_blog, viewModelFactory)
+{
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        cancelActiveJobs()
-
         // Restore state after process death
         savedInstanceState?.let { inState ->
             (inState[BLOG_VIEW_STATE_BUNDLE_KEY] as BlogViewState?)?.let { viewState ->
@@ -49,7 +45,10 @@ class ViewBlogFragment @Inject constructor(
         }
     }
 
-
+    /**
+     * !IMPORTANT!
+     * Must save ViewState b/c in event of process death the LiveData in ViewModel will be lost
+     */
     override fun onSaveInstanceState(outState: Bundle) {
         val viewState = viewModel.viewState.value
 
@@ -60,25 +59,20 @@ class ViewBlogFragment @Inject constructor(
             BLOG_VIEW_STATE_BUNDLE_KEY,
             viewState
         )
-
         super.onSaveInstanceState(outState)
-    }
-
-    override fun cancelActiveJobs() {
-        viewModel.cancelActiveJobs()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         setHasOptionsMenu(true)
         subscribeObservers()
         checkIsAuthorOfBlogPost()
-        stateChangeListener.expandAppBar()
+        uiCommunicationListener.expandAppBar()
 
         delete_button.setOnClickListener {
             confirmDeleteRequest()
         }
+
     }
 
     fun confirmDeleteRequest(){
@@ -91,49 +85,64 @@ class ViewBlogFragment @Inject constructor(
             override fun cancel() {
                 // ignore
             }
-
         }
-        uiCommunicationListener.onUIMessageReceived(
-            UIMessage(
-                getString(R.string.are_you_sure_delete),
-                UIMessageType.AreYouSureDialog(callback)
-            )
+        uiCommunicationListener.onResponseReceived(
+            response = Response(
+                message = getString(R.string.are_you_sure_delete),
+                uiComponentType = UIComponentType.AreYouSureDialog(callback),
+                messageType = MessageType.Info
+            ),
+            stateMessageCallback = object: StateMessageCallback {
+                override fun removeMessageFromStack() {
+                    viewModel.clearStateMessage()
+                }
+            }
         )
     }
 
-    private fun checkIsAuthorOfBlogPost(){
-        viewModel.setIsAuthorOfBlogPost(false) // resets
+    fun deleteBlogPost(){
+        viewModel.setStateEvent(
+            BlogStateEvent.DeleteBlogPostEvent
+        )
+    }
+
+    fun checkIsAuthorOfBlogPost(){
+        viewModel.setIsAuthorOfBlogPost(false) // reset
         viewModel.setStateEvent(BlogStateEvent.CheckAuthorOfBlogPost)
     }
 
     fun subscribeObservers(){
-        viewModel.dataState.observe(viewLifecycleOwner, Observer{ dataState ->
-            if(dataState != null) {
-                stateChangeListener.onDataStateChange(dataState)
-                dataState.data?.let { data ->
-                    data.data?.getContentIfNotHandled()?.let { viewState ->
-                        viewModel.setIsAuthorOfBlogPost(
-                            viewState.viewBlogFields.isTheAuthorOfBlog
-                        )
-                    }
-
-                    data.response?.peekContent()?.let { response ->
-                        if (response.message == SUCCESS_BLOG_DELETED) {
-                            viewModel.removeDeletedBlogPost()
-                            findNavController().popBackStack()
-                        }
-                    }
-                }
-            }
-        })
 
         viewModel.viewState.observe(viewLifecycleOwner, Observer { viewState ->
             viewState.viewBlogFields.blogPost?.let{ blogPost ->
                 setBlogProperties(blogPost)
             }
 
-            if(viewState.viewBlogFields.isTheAuthorOfBlog){
+            if(viewState.viewBlogFields.isAuthorOfBlogPost == true){
                 adaptViewToAuthorMode()
+            }
+        })
+
+        viewModel.numActiveJobs.observe(viewLifecycleOwner, Observer { jobCounter ->
+            uiCommunicationListener.displayProgressBar(viewModel.areAnyJobsActive())
+        })
+
+        viewModel.stateMessage.observe(viewLifecycleOwner, Observer { stateMessage ->
+
+            if(stateMessage?.response?.message.equals(SUCCESS_BLOG_DELETED)){
+                viewModel.removeDeletedBlogPost()
+                findNavController().popBackStack()
+            }
+
+            stateMessage?.let {
+                uiCommunicationListener.onResponseReceived(
+                    response = it.response,
+                    stateMessageCallback = object: StateMessageCallback {
+                        override fun removeMessageFromStack() {
+                            viewModel.clearStateMessage()
+                        }
+                    }
+                )
             }
         })
     }
@@ -143,23 +152,15 @@ class ViewBlogFragment @Inject constructor(
         delete_button.visibility = View.VISIBLE
     }
 
-    private fun setBlogProperties(blogPost: BlogPost){
+    fun setBlogProperties(blogPost: BlogPost){
         requestManager
             .load(blogPost.image)
             .into(blog_image)
-
-        blog_title.text = blogPost.title
-        blog_author.text = blogPost.username
-        blog_update_date.text = DateUtils.convertLongToStringDate(blogPost.date_updated)
-        blog_body.text = blogPost.body
+        blog_title.setText(blogPost.title)
+        blog_author.setText(blogPost.username)
+        blog_update_date.setText(DateUtils.convertLongToStringDate(blogPost.date_updated))
+        blog_body.setText(blogPost.body)
     }
-
-    private fun deleteBlogPost(){
-        viewModel.setStateEvent(
-            BlogStateEvent.DeleteBlogPostEvent
-        )
-    }
-
 
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
         if(viewModel.isAuthorOfBlogPost()){
@@ -182,11 +183,9 @@ class ViewBlogFragment @Inject constructor(
     private fun navUpdateBlogFragment(){
         try{
             // prep for next fragment
-            viewModel.setUpdatedBlogFields(
-                viewModel.getBlogPost().title,
-                viewModel.getBlogPost().body,
-                viewModel.getBlogPost().image.toUri()
-            )
+            viewModel.setUpdatedTitle(viewModel.getBlogPost().title)
+            viewModel.setUpdatedBody(viewModel.getBlogPost().body)
+            viewModel.setUpdatedUri(viewModel.getBlogPost().image.toUri())
             findNavController().navigate(R.id.action_viewBlogFragment_to_updateBlogFragment)
         }catch (e: Exception){
             // send error report or something. These fields should never be null. Not possible

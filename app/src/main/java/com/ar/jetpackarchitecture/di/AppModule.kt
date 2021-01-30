@@ -10,7 +10,6 @@ import com.ar.jetpackarchitecture.persistence.AppDatabase
 import com.ar.jetpackarchitecture.persistence.AppDatabase.Companion.DATABASE_NAME
 import com.ar.jetpackarchitecture.persistence.AuthTokenDAO
 import com.ar.jetpackarchitecture.util.Constants
-import com.ar.jetpackarchitecture.util.LiveDataCallAdapterFactory
 import com.ar.jetpackarchitecture.util.PreferenceKeys
 import com.bumptech.glide.Glide
 import com.bumptech.glide.RequestManager
@@ -40,7 +39,6 @@ object AppModule{
     fun providesRetrofitBuilder(gson : Gson): Retrofit.Builder {
         return Retrofit.Builder()
             .baseUrl(Constants.BASE_URL)
-            .addCallAdapterFactory(LiveDataCallAdapterFactory())
             .addConverterFactory(GsonConverterFactory.create(gson))
 
     }

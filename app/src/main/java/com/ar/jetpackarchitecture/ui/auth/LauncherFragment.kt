@@ -12,26 +12,21 @@ import androidx.navigation.fragment.findNavController
 import com.ar.jetpackarchitecture.R
 import com.ar.jetpackarchitecture.di.auth.AuthScope
 import kotlinx.android.synthetic.main.fragment_launcher.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import javax.inject.Inject
 
 
+
+@FlowPreview
+@ExperimentalCoroutinesApi
 @AuthScope
 class LauncherFragment
-@Inject constructor(
-    private val viewModelFactory: ViewModelProvider.Factory
-) : Fragment(R.layout.fragment_launcher,){
+@Inject
+constructor(
+    viewModelFactory: ViewModelProvider.Factory
+): BaseAuthFragment(R.layout.fragment_launcher, viewModelFactory) {
 
-    val viewModel : AuthViewModel by viewModels {
-        viewModelFactory
-    }
-
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        viewModel.cancelActiveJobs()
-    }
-
-    // they take the onSuper from BaseAuthFragment because of the inheritance
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -48,7 +43,6 @@ class LauncherFragment
         }
 
         focusable_view.requestFocus() // reset focus
-
     }
 
     fun navLogin(){
@@ -62,5 +56,8 @@ class LauncherFragment
     fun navForgotPassword(){
         findNavController().navigate(R.id.action_launcherFragment_to_forgotPasswordFragment)
     }
+
 }
+
+
 

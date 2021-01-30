@@ -6,80 +6,81 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
-import android.view.*
-import androidx.fragment.app.viewModels
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
+import android.view.View
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.ar.jetpackarchitecture.R
-import com.ar.jetpackarchitecture.di.main.MainScope
-import com.ar.jetpackarchitecture.ui.*
-import com.ar.jetpackarchitecture.ui.main.create_blog.state.CREATE_BLOG_VIEW_KEY
+import com.ar.jetpackarchitecture.ui.AreYouSureCallback
+import com.ar.jetpackarchitecture.ui.main.create_blog.state.CREATE_BLOG_VIEW_STATE_BUNDLE_KEY
 import com.ar.jetpackarchitecture.ui.main.create_blog.state.CreateBlogStateEvent
 import com.ar.jetpackarchitecture.ui.main.create_blog.state.CreateBlogViewState
 import com.ar.jetpackarchitecture.util.Constants.Companion.GALLERY_REQUEST_CODE
-import com.ar.jetpackarchitecture.util.ERROR_MUST_SELECT_IMAGE
-import com.ar.jetpackarchitecture.util.ERROR_SOMETHING_WRONG_WITH_IMAGE
+import com.ar.jetpackarchitecture.util.ErrorHandling.Companion.ERROR_MUST_SELECT_IMAGE
+import com.ar.jetpackarchitecture.util.ErrorHandling.Companion.ERROR_SOMETHING_WRONG_WITH_IMAGE
+import com.ar.jetpackarchitecture.util.MessageType
+import com.ar.jetpackarchitecture.util.Response
+import com.ar.jetpackarchitecture.util.StateMessageCallback
 import com.ar.jetpackarchitecture.util.SuccessHandling.Companion.SUCCESS_BLOG_CREATED
+import com.ar.jetpackarchitecture.util.UIComponentType
 import com.bumptech.glide.RequestManager
 import com.theartofdev.edmodo.cropper.CropImage
 import com.theartofdev.edmodo.cropper.CropImageView
 import kotlinx.android.synthetic.main.fragment_create_blog.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import java.io.File
 import javax.inject.Inject
 
-@MainScope
-class CreateBlogFragment @Inject constructor(
-    private val viewModelFactory : ViewModelProvider.Factory,
+@FlowPreview
+@ExperimentalCoroutinesApi
+class CreateBlogFragment
+@Inject
+constructor(
+    viewModelFactory: ViewModelProvider.Factory,
     private val requestManager: RequestManager
-): BaseCreateBlogFragment(R.layout.fragment_create_blog){
+): BaseCreateBlogFragment(R.layout.fragment_create_blog, viewModelFactory)
+{
 
-    val viewModel : CreateBlogViewModel by viewModels {
-        viewModelFactory
-    }
-
-        override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        cancelActiveJobs()
-
         // Restore state after process death
         savedInstanceState?.let { inState ->
-            (inState[CREATE_BLOG_VIEW_KEY] as CreateBlogViewState?)?.let { viewState ->
+            (inState[CREATE_BLOG_VIEW_STATE_BUNDLE_KEY] as CreateBlogViewState?)?.let { viewState ->
                 viewModel.setViewState(viewState)
             }
         }
     }
 
-
+    /**
+     * !IMPORTANT!
+     * Must save ViewState b/c in event of process death the LiveData in ViewModel will be lost
+     */
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putParcelable(
-            CREATE_BLOG_VIEW_KEY,
+            CREATE_BLOG_VIEW_STATE_BUNDLE_KEY,
             viewModel.viewState.value
         )
-
         super.onSaveInstanceState(outState)
     }
-
-    override fun cancelActiveJobs() {
-        viewModel.cancelActiveJobs()
-    }
-
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setHasOptionsMenu(true)
 
         blog_image.setOnClickListener {
-            if(stateChangeListener.isStoragePermissionGranted()){
+            if(uiCommunicationListener.isStoragePermissionGranted()){
                 pickFromGallery()
             }
         }
 
         update_textview.setOnClickListener {
-            if(stateChangeListener.isStoragePermissionGranted()){
+            if(uiCommunicationListener.isStoragePermissionGranted()){
                 pickFromGallery()
             }
         }
@@ -90,81 +91,50 @@ class CreateBlogFragment @Inject constructor(
     private fun pickFromGallery() {
         val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         intent.type = "image/*"
-
         val mimeTypes = arrayOf("image/jpeg", "image/png", "image/jpg")
-
         intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
-        intent.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
-
-        //start another activity and receive a result back
-        // in this case gives the control to the gallery
+        intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         startActivityForResult(intent, GALLERY_REQUEST_CODE)
-
-        //https://github.com/ArthurHub/Android-Image-Cropper
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        if (resultCode == Activity.RESULT_OK) {
-
-            Log.d(TAG, "CROP: RESULT OK")
-            when (requestCode) {
-
-                // requests the crop intent , to see the crop activity
-                GALLERY_REQUEST_CODE -> {
-                    data?.data?.let { uri ->
-                        activity?.let {
-                            launchImageCrop(uri)
-                        }
-                    } ?: showErrorDialog(ERROR_SOMETHING_WRONG_WITH_IMAGE)
-                }
-
-                // crop went ok
-                CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE -> {
-                    Log.d(TAG, "CROP: CROP_IMAGE_ACTIVITY_REQUEST_CODE")
-                    val result = CropImage.getActivityResult(data)
-                    val resultUri = result.uri
-
-                    Log.d(TAG, "CROP: CROP_IMAGE_ACTIVITY_REQUEST_CODE: uri: ${resultUri}")
-
-                    viewModel.setNewBlogFields(
-                        title = null,
-                        body = null,
-                        uri = resultUri
-                    )
-                }
-
-                //UPSSS
-                CropImage.CROP_IMAGE_ACTIVITY_RESULT_ERROR_CODE -> {
-                    Log.d(TAG, "CROP: ERROR")
-                    showErrorDialog(ERROR_SOMETHING_WRONG_WITH_IMAGE)
-                }
-
+    fun subscribeObservers(){
+        viewModel.viewState.observe(viewLifecycleOwner, Observer { viewState ->
+            viewState.blogFields.let{ newBlogFields ->
+                setBlogProperties(
+                    newBlogFields.newBlogTitle,
+                    newBlogFields.newBlogBody,
+                    newBlogFields.newImageUri
+                )
             }
-        }
+        })
+
+        viewModel.numActiveJobs.observe(viewLifecycleOwner, Observer { jobCounter ->
+            uiCommunicationListener.displayProgressBar(viewModel.areAnyJobsActive())
+        })
+
+        viewModel.stateMessage.observe(viewLifecycleOwner, Observer { stateMessage ->
+
+            stateMessage?.let {
+                if (it.response.message.equals(SUCCESS_BLOG_CREATED)) {
+                    viewModel.clearNewBlogFields()
+                }
+                uiCommunicationListener.onResponseReceived(
+                    response = it.response,
+                    stateMessageCallback = object: StateMessageCallback {
+                        override fun removeMessageFromStack() {
+                            viewModel.clearStateMessage()
+                        }
+                    }
+                )
+            }
+        })
     }
 
-
-    private fun launchImageCrop(uri: Uri){
-        context?.let{
-            CropImage.activity(uri)
-                .setGuidelines(CropImageView.Guidelines.ON)
-                .start(it, this)
-        }
-    }
-
-    fun showErrorDialog(errorMessage: String){
-        stateChangeListener.onDataStateChange(
-            DataState(
-                Event(StateError(Response(errorMessage, ResponseType.Dialog))),
-                Loading(isLoading = false),
-                Data(Event.dataEvent(null), null)
-            )
-        )
-    }
-
-    fun setBlogProperties(title: String?, body: String?, image: Uri?){
+    fun setBlogProperties(
+        title: String? = "",
+        body: String? = "",
+        image: Uri?
+    ){
         if(image != null){
             requestManager
                 .load(image)
@@ -180,47 +150,55 @@ class CreateBlogFragment @Inject constructor(
         blog_body.setText(body)
     }
 
-   private fun subscribeObservers(){
-       viewModel.dataState.observe(viewLifecycleOwner, Observer { dataState ->
 
-           if(dataState != null) {
-               stateChangeListener.onDataStateChange(dataState)
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode == Activity.RESULT_OK) {
+            Log.d(TAG, "CROP: RESULT OK")
+            when (requestCode) {
 
-               dataState.data?.let { data ->
-                   data.response?.let { event ->
-                       event.peekContent().let { response ->
-                           response.message?.let { message ->
+                GALLERY_REQUEST_CODE -> {
+                    data?.data?.let { uri ->
+                        activity?.let{
+                            launchImageCrop(uri)
+                        }
+                    }?: showErrorDialog(ERROR_SOMETHING_WRONG_WITH_IMAGE)
+                }
 
-                               if (message == SUCCESS_BLOG_CREATED) {
-                                   viewModel.clearNewBlogFields()
-                               }
-                           }
-                       }
-                   }
-               }
-           }
-       })
+                CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE -> {
+                    Log.d(TAG, "CROP: CROP_IMAGE_ACTIVITY_REQUEST_CODE")
+                    val result = CropImage.getActivityResult(data)
+                    val resultUri = result.uri
+                    Log.d(TAG, "CROP: CROP_IMAGE_ACTIVITY_REQUEST_CODE: uri: ${resultUri}")
+                    viewModel.setNewBlogFields(
+                        title = null,
+                        body = null,
+                        uri = resultUri
+                    )
+                }
 
-        viewModel.viewState.observe(viewLifecycleOwner, Observer { viewState ->
-            viewState.blogFields.let{ newBlogFields ->
-                setBlogProperties(
-                    newBlogFields.newBlogTitle,
-                    newBlogFields.newBlogBody,
-                    newBlogFields.newImageUri
-                )
+                CropImage.CROP_IMAGE_ACTIVITY_RESULT_ERROR_CODE -> {
+                    Log.d(TAG, "CROP: ERROR")
+                    showErrorDialog(ERROR_SOMETHING_WRONG_WITH_IMAGE)
+                }
             }
-        })
+        }
     }
 
+    private fun launchImageCrop(uri: Uri){
+        context?.let{
+            CropImage.activity(uri)
+                .setGuidelines(CropImageView.Guidelines.ON)
+                .start(it, this)
+        }
+    }
 
     private fun publishNewBlog(){
         var multipartBody: MultipartBody.Part? = null
-
-        viewModel.getNewImageUri()?.let { imageUri ->
-
-            imageUri.path?.let { filePath ->
+        viewModel.viewState.value?.blogFields?.newImageUri?.let{ imageUri ->
+            imageUri.path?.let{filePath ->
                 val imageFile = File(filePath)
-
+                Log.d(TAG, "CreateBlogFragment, imageFile: file: ${imageFile}")
                 val requestBody =
                     RequestBody.create(
                         MediaType.parse("image/*"),
@@ -246,15 +224,28 @@ class CreateBlogFragment @Inject constructor(
                     it
                 )
             )
-            stateChangeListener.hideSoftKeyboard()
+            uiCommunicationListener.hideSoftKeyboard()
         }?: showErrorDialog(ERROR_MUST_SELECT_IMAGE)
 
     }
 
-    // to save data if rotating screen
+    fun showErrorDialog(errorMessage: String){
+        uiCommunicationListener.onResponseReceived(
+            response = Response(
+                message = errorMessage,
+                uiComponentType = UIComponentType.Dialog,
+                messageType = MessageType.Error
+            ),
+            stateMessageCallback = object: StateMessageCallback{
+                override fun removeMessageFromStack() {
+                    viewModel.clearStateMessage()
+                }
+            }
+        )
+    }
+
     override fun onPause() {
         super.onPause()
-
         viewModel.setNewBlogFields(
             blog_title.text.toString(),
             blog_body.text.toString(),
@@ -268,7 +259,6 @@ class CreateBlogFragment @Inject constructor(
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when(item.itemId){
-
             R.id.publish -> {
                 val callback: AreYouSureCallback = object: AreYouSureCallback {
 
@@ -281,16 +271,21 @@ class CreateBlogFragment @Inject constructor(
                     }
 
                 }
-                uiCommunicationListener.onUIMessageReceived(
-                    UIMessage(
-                        getString(R.string.are_you_sure_publish),
-                        UIMessageType.AreYouSureDialog(callback)
-                    )
+                uiCommunicationListener.onResponseReceived(
+                    response = Response(
+                        message = getString(R.string.are_you_sure_publish),
+                        uiComponentType = UIComponentType.AreYouSureDialog(callback),
+                        messageType = MessageType.Info
+                    ),
+                    stateMessageCallback = object: StateMessageCallback{
+                        override fun removeMessageFromStack() {
+                            viewModel.clearStateMessage()
+                        }
+                    }
                 )
                 return true
             }
         }
         return super.onOptionsItemSelected(item)
     }
-
 }

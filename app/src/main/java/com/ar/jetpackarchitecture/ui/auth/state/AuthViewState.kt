@@ -1,69 +1,83 @@
 package com.ar.jetpackarchitecture.ui.auth.state
 
+import android.os.Parcelable
 import com.ar.jetpackarchitecture.models.AuthToken
+import kotlinx.android.parcel.Parcelize
 
 
+const val AUTH_VIEW_STATE_BUNDLE_KEY = "com.codingwithmitch.openapi.ui.auth.state.AuthViewState"
+
+@Parcelize
 data class AuthViewState(
-    var registrationFields : RegistrationFields? = RegistrationFields(),
-    var loginFields : LoginFields? = LoginFields(),
-    var authToken : AuthToken? = null
-)
+    var registrationFields: RegistrationFields? = null,
+
+    var loginFields: LoginFields? = null,
+
+    var authToken: AuthToken? = null
+
+) : Parcelable
 
 
+@Parcelize
 data class RegistrationFields(
-    var registration_email : String? = null,
-    var registration_username : String? = null,
-    var registration_password : String? = null,
-    var registration_password_2 : String? = null,
-){
-    class RegistrationError{
+    var registration_email: String? = null,
+    var registration_username: String? = null,
+    var registration_password: String? = null,
+    var registration_confirm_password: String? = null
+) : Parcelable {
+
+    class RegistrationError {
         companion object{
 
-            fun mustFillAllFields() =
-                "All fields are required"
+            fun mustFillAllFields(): String{
+                return "All fields are required."
+            }
 
-            fun passwordsDoNotMatch() =
-                "Passwords must match"
+            fun passwordsDoNotMatch(): String{
+                return "Passwords must match."
+            }
 
-            fun none()=
-                 "None"
+            fun none():String{
+                return "None"
+            }
+
         }
     }
 
-    fun isValidForRegistration() : String{
-        if(registration_email.isNullOrEmpty() ||
-            registration_username.isNullOrEmpty() ||
-            registration_password.isNullOrEmpty() ||
-            registration_password_2.isNullOrEmpty()
-        ){
+    fun isValidForRegistration(): String{
+        if(registration_email.isNullOrEmpty()
+            || registration_username.isNullOrEmpty()
+            || registration_password.isNullOrEmpty()
+            || registration_confirm_password.isNullOrEmpty()){
             return RegistrationError.mustFillAllFields()
         }
 
-        else if(!registration_password.equals(registration_password_2)){
+        if(!registration_password.equals(registration_confirm_password)){
             return RegistrationError.passwordsDoNotMatch()
         }
-
         return RegistrationError.none()
     }
 }
 
+@Parcelize
 data class LoginFields(
     var login_email: String? = null,
     var login_password: String? = null
-){
-
+) : Parcelable {
     class LoginError {
 
         companion object{
 
-            fun mustFillAllFields() =
-                "You can't login without an email and password."
+            fun mustFillAllFields(): String{
+                return "You can't login without an email and password."
+            }
 
-            fun none() =
-                "None"
+            fun none():String{
+                return "None"
+            }
+
         }
     }
-
     fun isValidForLogin(): String{
 
         if(login_email.isNullOrEmpty()

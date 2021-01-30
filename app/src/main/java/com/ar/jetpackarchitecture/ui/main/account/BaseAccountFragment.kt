@@ -7,70 +7,44 @@ import android.view.View
 import androidx.annotation.LayoutRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.NavigationUI
 import com.ar.jetpackarchitecture.R
-import com.ar.jetpackarchitecture.ui.DataStateChangeListener
+import com.ar.jetpackarchitecture.ui.UICommunicationListener
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 
 
-abstract class BaseAccountFragment constructor(
+@FlowPreview
+@ExperimentalCoroutinesApi
+abstract class BaseAccountFragment
+constructor(
     @LayoutRes
-    private val layoutRes : Int
+    private val layoutRes: Int,
+    private val viewModelFactory: ViewModelProvider.Factory
 ): Fragment(layoutRes){
 
     val TAG: String = "AppDebug"
 
-
-    lateinit var stateChangeListener: DataStateChangeListener
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        try{
-            stateChangeListener = context as DataStateChangeListener
-        }catch(e: ClassCastException){
-            Log.e(TAG, "$context must implement DataStateChangeListener" )
-        }
-
+    val viewModel: AccountViewModel by viewModels{
+        viewModelFactory
     }
 
-/*    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        // cancelling when changing fragment
-        cancelActiveJobs()
-
-        // Restore state after process death
-        savedInstanceState?.let { inState ->
-            (inState[ACCOUNT_VIEW_STATE_BUNDLE_KEY] as AccountViewState?)?.let { viewState ->
-                viewModel.setViewState(viewState)
-            }
-        }
-    }*/
+    lateinit var uiCommunicationListener: UICommunicationListener
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupActionBarWithNavController(R.id.accountFragment, activity as AppCompatActivity)
+        setupChannel()
     }
 
+    private fun setupChannel() = viewModel.setupChannel()
 
-    /**
-     * !IMPORTANT!
-     * Must save ViewState b/c in event of process death the LiveData in ViewModel will be lost
-     */
-/*    override fun onSaveInstanceState(outState: Bundle) {
-        outState.putParcelable(
-            ACCOUNT_VIEW_STATE_BUNDLE_KEY,
-            viewModel.viewState.value
-        )
-
-        super.onSaveInstanceState(outState)
-    }*/
-
-    // deletes the backArrow on the fragments inside the setOf
-    fun setupActionBarWithNavController(fragmentId : Int, activity : AppCompatActivity){
+    fun setupActionBarWithNavController(fragmentId: Int, activity: AppCompatActivity){
         val appBarConfiguration = AppBarConfiguration(setOf(fragmentId))
-
         NavigationUI.setupActionBarWithNavController(
             activity,
             findNavController(),
@@ -78,5 +52,13 @@ abstract class BaseAccountFragment constructor(
         )
     }
 
-    abstract fun cancelActiveJobs()
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        try{
+            uiCommunicationListener = context as UICommunicationListener
+        }catch(e: ClassCastException){
+            Log.e(TAG, "$context must implement UICommunicationListener" )
+        }
+    }
+
 }

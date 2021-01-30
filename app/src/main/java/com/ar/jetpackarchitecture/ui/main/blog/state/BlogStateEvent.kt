@@ -1,22 +1,62 @@
 package com.ar.jetpackarchitecture.ui.main.blog.state
 
+import com.ar.jetpackarchitecture.util.StateEvent
 import okhttp3.MultipartBody
 
-sealed class BlogStateEvent {
 
-    object BlogSearchEvent : BlogStateEvent()
+sealed class BlogStateEvent: StateEvent {
 
-    object RestoreBlogListFromCache : BlogStateEvent()
+    class BlogSearchEvent(
+        val clearLayoutManagerState: Boolean = true
+    ) : BlogStateEvent() {
+        override fun errorInfo(): String {
+            return "Error searching for blog posts."
+        }
 
-    object CheckAuthorOfBlogPost : BlogStateEvent()
+        override fun toString(): String {
+            return "BlogSearchEvent"
+        }
+    }
 
-    object DeleteBlogPostEvent : BlogStateEvent()
+    object CheckAuthorOfBlogPost : BlogStateEvent() {
+        override fun errorInfo(): String {
+            return "Error checking if you are the author of this blog post."
+        }
+
+        override fun toString(): String {
+            return "CheckAuthorOfBlogPost"
+        }
+
+    }
+
+    object DeleteBlogPostEvent : BlogStateEvent() {
+        override fun errorInfo(): String {
+            return "Error deleting that blog post."
+        }
+
+        override fun toString(): String {
+            return "DeleteBlogPostEvent"
+        }
+    }
 
     data class UpdateBlogPostEvent(
         val title: String,
         val body: String,
         val image: MultipartBody.Part?
-    ): BlogStateEvent()
+    ): BlogStateEvent() {
+        override fun errorInfo(): String {
+            return "Error updating that blog post."
+        }
 
-    object None: BlogStateEvent()
+        override fun toString(): String {
+            return "UpdateBlogPostEvent"
+        }
+
+    }
+
+    object None : BlogStateEvent() {
+        override fun errorInfo(): String {
+            return "None."
+        }
+    }
 }

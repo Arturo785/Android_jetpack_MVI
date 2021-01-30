@@ -9,17 +9,22 @@ import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.afollestad.materialdialogs.MaterialDialog
+import com.afollestad.materialdialogs.callbacks.onDismiss
+import com.ar.jetpackarchitecture.BaseApplication
+import com.ar.jetpackarchitecture.R
 import com.ar.jetpackarchitecture.session.SessionManager
+import com.ar.jetpackarchitecture.util.*
 import com.ar.jetpackarchitecture.util.Constants.Companion.PERMISSIONS_REQUEST_READ_STORAGE
-import kotlinx.coroutines.Dispatchers.Main
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-abstract class BaseActivity :  DataStateChangeListener, AppCompatActivity()
-        , UICommunicationListener{
+abstract class BaseActivity: AppCompatActivity(),
+    UICommunicationListener
+{
 
-    val TAG = "BaseActivity"
+    val TAG: String = "AppDebug"
+
+    private var dialogInView: MaterialDialog? = null
 
     @Inject
     lateinit var sessionManager: SessionManager
@@ -27,118 +32,113 @@ abstract class BaseActivity :  DataStateChangeListener, AppCompatActivity()
     abstract fun inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        inject() // takes the behaviour of the class that implements it
+        (application as BaseApplication).appComponent
+            .inject(this)
         super.onCreate(savedInstanceState)
     }
 
-    override fun onDataStateChange(dataState: DataState<*>?) {
-        dataState?.let {
-            GlobalScope.launch(Main) {
-                displayProgressBar(it.loading.isLoading)
-            }
+    override fun onResponseReceived(
+        response: Response,
+        stateMessageCallback: StateMessageCallback
+    ) {
 
-            it.error?.let { errorEvent ->
-                // and error exists
-                handleStateError(errorEvent)
-            }
+        when(response.uiComponentType){
 
-            it.data?.let {
-                it.response?.let {responseEvent ->
-                    handleStateResponse(responseEvent)
+            is UIComponentType.AreYouSureDialog -> {
+
+                response.message?.let {
+                    areYouSureDialog(
+                        message = it,
+                        callback = response.uiComponentType.callback,
+                        stateMessageCallback = stateMessageCallback
+                    )
                 }
             }
-        }
-    }
 
-    private fun handleStateResponse(responseEvent: Event<Response>) {
-        responseEvent.getContentIfNotHandled()?.let {
-            when(it.responseType){
-
-                is ResponseType.Toast -> {
-                    it.message?.let { message ->
-                        displayToast(message) // comes from viewExtensions
-                    }
+            is UIComponentType.Toast -> {
+                response.message?.let {
+                    displayToast(
+                        message = it,
+                        stateMessageCallback = stateMessageCallback
+                    )
                 }
-
-                is ResponseType.Dialog -> {
-                    it.message?.let {message ->
-                        displaySuccessDialog(message)
-                    }
-                }
-
-                is ResponseType.None -> {
-                    Log.d(TAG, "handleStateError: ${it.message}")
-                }
-
-            }
-        }
-    }
-
-    private fun handleStateError(errorEvent: Event<StateError>) {
-        errorEvent.getContentIfNotHandled()?.let {
-            when(it.response.responseType){
-
-                is ResponseType.Toast -> {
-                    it.response.message?.let { message ->
-                        displayToast(message) // comes from viewExtensions
-                    }
-                }
-
-                is ResponseType.Dialog -> {
-                    it.response.message?.let {message ->
-                        displayErrorDialog(message)
-                    }
-                }
-
-                is ResponseType.None -> {
-                    Log.d(TAG, "handleStateError: ${it.response.message}")
-                }
-
-            }
-        }
-    }
-
-    abstract fun displayProgressBar(boolean: Boolean)
-
-    override fun hideSoftKeyboard() {
-        if(currentFocus != null){
-            val inputMethodManager = getSystemService(
-                Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.hideSoftInputFromWindow(currentFocus!!.windowToken, 0)
-        }
-    }
-
-    override fun onUIMessageReceived(uiMessage: UIMessage) {
-        when(uiMessage.uiMessageType){
-
-            UIMessageType.Toast -> {
-                displayToast(uiMessage.message)
             }
 
-            UIMessageType.Dialog -> {
-                displayInfoDialog(uiMessage.message)
-            }
-
-            is UIMessageType.AreYouSureDialog -> {
-                areYouSureDialog(
-                    uiMessage.message,
-                    uiMessage.uiMessageType.callback
+            is UIComponentType.Dialog -> {
+                displayDialog(
+                    response = response,
+                    stateMessageCallback = stateMessageCallback
                 )
             }
 
-            UIMessageType.None -> {
-
+            is UIComponentType.None -> {
+                // This would be a good place to send to your Error Reporting
+                // software of choice (ex: Firebase crash reporting)
+                Log.i(TAG, "onResponseReceived: ${response.message}")
+                stateMessageCallback.removeMessageFromStack()
             }
+        }
+    }
+
+    private fun displayDialog(
+        response: Response,
+        stateMessageCallback: StateMessageCallback
+    ){
+        Log.d(TAG, "displayDialog: ")
+        response.message?.let { message ->
+
+            dialogInView = when (response.messageType) {
+
+                is MessageType.Error -> {
+                    displayErrorDialog(
+                        message = message,
+                        stateMessageCallback = stateMessageCallback
+                    )
+                }
+
+                is MessageType.Success -> {
+                    displaySuccessDialog(
+                        message = message,
+                        stateMessageCallback = stateMessageCallback
+                    )
+                }
+
+                is MessageType.Info -> {
+                    displayInfoDialog(
+                        message = message,
+                        stateMessageCallback = stateMessageCallback
+                    )
+                }
+
+                else -> {
+                    // do nothing
+                    stateMessageCallback.removeMessageFromStack()
+                    null
+                }
+            }
+        }?: stateMessageCallback.removeMessageFromStack()
+    }
+
+    abstract override fun displayProgressBar(isLoading: Boolean)
+
+    override fun hideSoftKeyboard() {
+        if (currentFocus != null) {
+            val inputMethodManager = getSystemService(
+                Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            inputMethodManager
+                .hideSoftInputFromWindow(currentFocus!!.windowToken, 0)
         }
     }
 
     override fun isStoragePermissionGranted(): Boolean{
         if (
-            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+            ContextCompat.checkSelfPermission(this,
+                Manifest.permission.READ_EXTERNAL_STORAGE)
             != PackageManager.PERMISSION_GRANTED &&
-
-            ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            ContextCompat.checkSelfPermission(this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE)
             != PackageManager.PERMISSION_GRANTED  ) {
+
 
             ActivityCompat.requestPermissions(this,
                 arrayOf(
@@ -149,11 +149,102 @@ abstract class BaseActivity :  DataStateChangeListener, AppCompatActivity()
             )
 
             return false
-        }
-
-        else {
+        } else {
             // Permission has already been granted
             return true
         }
     }
+
+    override fun onPause() {
+        super.onPause()
+        if(dialogInView != null){
+            (dialogInView as MaterialDialog).dismiss()
+            dialogInView = null
+        }
+    }
+
+    private fun displaySuccessDialog(
+        message: String?,
+        stateMessageCallback: StateMessageCallback
+    ): MaterialDialog {
+        return MaterialDialog(this)
+            .show{
+                title(R.string.text_success)
+                message(text = message)
+                positiveButton(R.string.text_ok){
+                    stateMessageCallback.removeMessageFromStack()
+                    dismiss()
+                }
+                onDismiss {
+                    dialogInView = null
+                }
+                cancelable(false)
+            }
+    }
+
+    private fun displayErrorDialog(
+        message: String?,
+        stateMessageCallback: StateMessageCallback
+    ): MaterialDialog {
+        return MaterialDialog(this)
+            .show{
+                title(R.string.text_error)
+                message(text = message)
+                positiveButton(R.string.text_ok){
+                    stateMessageCallback.removeMessageFromStack()
+                    dismiss()
+                }
+                onDismiss {
+                    dialogInView = null
+                }
+                cancelable(false)
+            }
+    }
+
+    private fun displayInfoDialog(
+        message: String?,
+        stateMessageCallback: StateMessageCallback
+    ): MaterialDialog {
+        return MaterialDialog(this)
+            .show{
+                title(R.string.text_info)
+                message(text = message)
+                positiveButton(R.string.text_ok){
+                    stateMessageCallback.removeMessageFromStack()
+                    dismiss()
+                }
+                onDismiss {
+                    dialogInView = null
+                }
+                cancelable(false)
+            }
+    }
+
+    private fun areYouSureDialog(
+        message: String,
+        callback: AreYouSureCallback,
+        stateMessageCallback: StateMessageCallback
+    ): MaterialDialog {
+        return MaterialDialog(this)
+            .show{
+                title(R.string.are_you_sure)
+                message(text = message)
+                negativeButton(R.string.text_cancel){
+                    callback.cancel()
+                    stateMessageCallback.removeMessageFromStack()
+                    dismiss()
+                }
+                positiveButton(R.string.text_yes){
+                    callback.proceed()
+                    stateMessageCallback.removeMessageFromStack()
+                    dismiss()
+                }
+                onDismiss {
+                    dialogInView = null
+                }
+                cancelable(false)
+            }
+    }
 }
+
+
